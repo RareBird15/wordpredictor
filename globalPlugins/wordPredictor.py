@@ -11,7 +11,7 @@
 # v0.3.0: Adds settings panel, configurable predictions count,
 # learning toggle, and partial-word prediction interval.
 # v0.4.0: Fixes modifier key conflict. Prediction selection keys
-# changed from bare number keys to NVDA+Ctrl+number (1 through 0)
+# changed from bare number keys to NVDA+control+number (1 through 0)
 # to avoid breaking heading navigation in browse mode and number
 # typing. Typing is now deferred 100ms so modifier keys (NVDA, Ctrl)
 # are physically released before the predicted word is sent,
@@ -473,7 +473,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message("No predictions available")
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+1",
+		gesture="kb:NVDA+control+1",
 	description="Accept word prediction 1",
 		category=SCRIPT_CATEGORY
 	)
@@ -485,7 +485,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(0)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+2",
+		gesture="kb:NVDA+control+2",
 	description="Accept word prediction 2",
 		category=SCRIPT_CATEGORY
 	)
@@ -499,7 +499,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(1)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+3",
+		gesture="kb:NVDA+control+3",
 	description="Accept word prediction 3",
 		category=SCRIPT_CATEGORY
 	)
@@ -513,7 +513,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(2)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+4",
+		gesture="kb:NVDA+control+4",
 	description="Accept word prediction 4",
 		category=SCRIPT_CATEGORY
 	)
@@ -527,7 +527,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(3)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+5",
+		gesture="kb:NVDA+control+5",
 	description="Accept word prediction 5",
 		category=SCRIPT_CATEGORY
 	)
@@ -541,7 +541,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(4)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+6",
+		gesture="kb:NVDA+control+6",
 	description="Accept word prediction 6",
 		category=SCRIPT_CATEGORY
 	)
@@ -555,7 +555,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(5)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+7",
+		gesture="kb:NVDA+control+7",
 	description="Accept word prediction 7",
 		category=SCRIPT_CATEGORY
 	)
@@ -569,7 +569,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(6)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+8",
+		gesture="kb:NVDA+control+8",
 	description="Accept word prediction 8",
 		category=SCRIPT_CATEGORY
 	)
@@ -583,7 +583,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(7)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+9",
+		gesture="kb:NVDA+control+9",
 	description="Accept word prediction 9",
 		category=SCRIPT_CATEGORY
 	)
@@ -597,7 +597,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(8)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+ctrl+0",
+		gesture="kb:NVDA+control+0",
 	description="Accept word prediction 10",
 		category=SCRIPT_CATEGORY
 	)
