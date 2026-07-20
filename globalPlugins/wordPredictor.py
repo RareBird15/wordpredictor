@@ -129,15 +129,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Insert the word by sending keystrokes
 		import keyboardHandler
 		for char in word:
-			keyboardHandler.KeyboardInputGesture.fromName(f"kb:{char}").send()
+			keyboardHandler.KeyboardInputGesture.fromName(char).send()
 		# Add a space after the word
-		keyboardHandler.KeyboardInputGesture.fromName("kb:space").send()
+		keyboardHandler.KeyboardInputGesture.fromName("space").send()
 
 		# Learn from the accepted word
 		self._learn_from_word(word)
 
-		# Clear current predictions
+		# Clear current predictions so number keys pass through
 		self._predictions = []
+		# Announce what was inserted
+		ui.message(f"Inserted: {word}")
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+shift+p",
@@ -153,39 +155,54 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._current_word = ""
 
 	@scriptHandler.script(
-		gesture="kb:control+NVDA+1",
+		gesture="kb:1",
 		description="Accept word prediction 1"
 	)
 	def script_acceptPrediction1(self, gesture):
-		self._accept_prediction(0)
+		if self._enabled and self._predictions:
+			self._accept_prediction(0)
+		else:
+			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:control+NVDA+2",
+		gesture="kb:2",
 		description="Accept word prediction 2"
 	)
 	def script_acceptPrediction2(self, gesture):
-		self._accept_prediction(1)
+		if self._enabled and len(self._predictions) > 1:
+			self._accept_prediction(1)
+		else:
+			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:control+NVDA+3",
+		gesture="kb:3",
 		description="Accept word prediction 3"
 	)
 	def script_acceptPrediction3(self, gesture):
-		self._accept_prediction(2)
+		if self._enabled and len(self._predictions) > 2:
+			self._accept_prediction(2)
+		else:
+			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:control+NVDA+4",
+		gesture="kb:4",
 		description="Accept word prediction 4"
 	)
 	def script_acceptPrediction4(self, gesture):
-		self._accept_prediction(3)
+		if self._enabled and len(self._predictions) > 3:
+			self._accept_prediction(3)
+		else:
+			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:control+NVDA+5",
+		gesture="kb:5",
 		description="Accept word prediction 5"
 	)
 	def script_acceptPrediction5(self, gesture):
-		self._accept_prediction(4)
+		if self._enabled and len(self._predictions) > 4:
+			self._accept_prediction(4)
+		else:
+			gesture.send()
 
 	def event_typedCharacter(self, obj, nextHandler, ch):
 		"""Track typed characters to build words and trigger predictions."""
