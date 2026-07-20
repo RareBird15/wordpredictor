@@ -30,7 +30,7 @@ This add-on solves those problems by working inside NVDA itself. No external TTS
 
 | Key | Action |
 |-----|--------|
-| 1-0 | Accept prediction 1-10 (only intercepts when predictions are active) |
+| NVDA+Ctrl+A through NVDA+Ctrl+K | Accept prediction 1-10 (only intercepts when predictions are active) |
 | NVDA+Shift+P | Toggle word prediction on/off |
 | NVDA+Shift+O | Request predictions on demand (partial or full) |
 | NVDA+Shift+S | Save learning to disk manually |
@@ -47,7 +47,7 @@ All key bindings can be remapped in NVDA's Input Gestures dialog under the "Word
 
 1. Start typing in any text field.
 2. When you press space after a word, you'll hear a short beep followed by up to 5 predictions.
-3. Press 1 to accept the first prediction, 2 for the second, etc.
+3. Press NVDA+Ctrl+A to accept the first prediction, NVDA+Ctrl+B for the second, etc.
 4. The predicted word is typed automatically with a trailing space.
 5. For partial-word prediction, type part of a word and press NVDA+Shift+O.
 6. Press NVDA+Shift+P to toggle prediction on or off.
@@ -73,6 +73,35 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 - **Prediction engine:** Custom n-gram implementation, no NLTK dependency at runtime
 - **Data file:** ~1.6 MB JSON file with bigram and trigram counts
 - **Config:** Settings stored in NVDA's config under the `wordPredictor` key
+
+## Changelog
+
+### v0.4.0
+
+- **Breaking change:** Prediction selection keys changed from bare number keys (1-0) to NVDA+Ctrl+A through NVDA+Ctrl+K. The old keys broke heading navigation in browse mode (keys 1-6) and interfered with typing numbers.
+- **Bug fix:** Typing of accepted predictions is now deferred by 100ms so modifier keys (NVDA, Ctrl) are physically released before character keystrokes are sent. Previously, characters were sent while Ctrl was still held, triggering application shortcuts (Ctrl+H = history, Ctrl+S = save, etc.).
+- Removed the `gesture.send()` passthrough on number keys since the add-on no longer intercepts bare number keys.
+
+### v0.3.0
+
+- Added settings panel in NVDA Settings
+- Added configurable prediction count (1-10)
+- Added learning on/off toggle
+- Added partial-word prediction interval
+- Added NVDA+Shift+O for on-demand predictions
+
+### v0.2.0
+
+- Added persistent learning (saves to NVDA user config)
+- Added partial-word prediction
+- Added on-demand prediction key
+
+### v0.1.0
+
+- Initial release
+- N-gram prediction engine (bigrams + trigrams)
+- Real-time learning
+- Predictions announced through NVDA speech
 
 ## License
 

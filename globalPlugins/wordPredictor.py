@@ -8,6 +8,14 @@
 #
 # v0.2.0: Adds persistent learning, partial-word prediction, and
 # on-demand prediction key.
+# v0.3.0: Adds settings panel, configurable predictions count,
+# learning toggle, and partial-word prediction interval.
+# v0.4.0: Fixes modifier key conflict. Prediction selection keys
+# changed from bare number keys to NVDA+Ctrl+letters (a through j)
+# to avoid breaking heading navigation in browse mode and number
+# typing. Typing is now deferred 100ms so modifier keys (NVDA, Ctrl)
+# are physically released before the predicted word is sent,
+# preventing Ctrl+letter shortcuts from firing.
 
 import globalPluginHandler
 import scriptHandler
@@ -32,6 +40,11 @@ DEFAULT_CONFIG = {
 
 # Script category for NVDA Input Gestures dialog
 SCRIPT_CATEGORY = "Word Predictor"
+
+# Delay (ms) before typing accepted prediction, to allow modifier
+# keys to be released. Without this, characters sent while Ctrl is
+# still held trigger application shortcuts (Ctrl+H, Ctrl+S, etc.).
+TYPE_DELAY_MS = 100
 
 
 class SettingsPanel(gui.settingsDialogs.SettingsPanel):
@@ -95,7 +108,6 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._max_predictions = settings["maxPredictions"]
 			SettingsPanel._plugin._beep_enabled = settings["beepBeforePredictions"]
 			SettingsPanel._plugin._learning_enabled = settings["learningEnabled"]
-
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin that provides proactive word prediction for NVDA users."""
@@ -348,6 +360,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		For partial predictions, we need to type only the remaining
 		characters (the part the user hasn't typed yet).
+
+		Typing is deferred by TYPE_DELAY_MS to allow modifier keys
+		(NVDA, Ctrl) to be physically released before we send
+		character keystrokes. Without this delay, characters would be
+		sent while Ctrl is still held, triggering application
+		shortcuts (Ctrl+H = history, Ctrl+S = save, etc.).
 		"""
 		predictions = self._partial_predictions if is_partial else self._predictions
 		if index < 0 or index >= len(predictions):
@@ -361,32 +379,38 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# For partial predictions, only type the remaining characters
 		if is_partial and self._current_word:
-			remaining = word[len(self._current_word):]
-			chars_to_type = remaining
+			chars_to_type = word[len(self._current_word):]
 		else:
 			chars_to_type = word
 
-		# Insert the characters by sending keystrokes
-		import keyboardHandler
-		for char in chars_to_type:
-			if char.isupper():
-				# Send shift+letter for uppercase
-				keyboardHandler.KeyboardInputGesture.fromName(f"shift+{char.lower()}").send()
-			else:
-				keyboardHandler.KeyboardInputGesture.fromName(char).send()
-		# Add a space after the word
-		keyboardHandler.KeyboardInputGesture.fromName("space").send()
+		word_to_learn = word.lower()
 
-		# Learn from the accepted word
-		self._learn_from_word(word.lower())
-
-		# Clear current word and predictions
+		# Clear state immediately so duplicate accepts don't fire
 		self._current_word = ""
 		self._predictions = []
 		self._partial_predictions = []
 
-		# Announce what was inserted
-		ui.message(f"Inserted: {word}")
+		# Defer typing to allow modifier keys to be released.
+		# The prediction gesture includes NVDA+Ctrl, and if we send
+		# character keystrokes while Ctrl is still held, the OS
+		# interprets them as Ctrl+letter shortcuts.
+		def _do_type():
+			import keyboardHandler
+			for char in chars_to_type:
+				if char.isupper():
+					keyboardHandler.KeyboardInputGesture.fromName(
+						f"shift+{char.lower()}"
+					).send()
+				else:
+					keyboardHandler.KeyboardInputGesture.fromName(char).send()
+			# Add a space after the word
+			keyboardHandler.KeyboardInputGesture.fromName("space").send()
+			# Learn from the accepted word
+			self._learn_from_word(word_to_learn)
+			# Announce what was inserted
+			ui.message(f"Inserted: {word}")
+
+		wx.CallLater(TYPE_DELAY_MS, _do_type)
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+shift+p",
@@ -449,7 +473,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				ui.message("No predictions available")
 
 	@scriptHandler.script(
-		gesture="kb:1",
+		gesture="kb:NVDA+ctrl+a",
 		description="Accept word prediction 1",
 		category=SCRIPT_CATEGORY
 	)
@@ -459,11 +483,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(0, is_partial=True)
 			else:
 				self._accept_prediction(0)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:2",
+		gesture="kb:NVDA+ctrl+b",
 		description="Accept word prediction 2",
 		category=SCRIPT_CATEGORY
 	)
@@ -475,11 +497,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(1, is_partial=True)
 			else:
 				self._accept_prediction(1)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:3",
+		gesture="kb:NVDA+ctrl+c",
 		description="Accept word prediction 3",
 		category=SCRIPT_CATEGORY
 	)
@@ -491,11 +511,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(2, is_partial=True)
 			else:
 				self._accept_prediction(2)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:4",
+		gesture="kb:NVDA+ctrl+d",
 		description="Accept word prediction 4",
 		category=SCRIPT_CATEGORY
 	)
@@ -507,11 +525,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(3, is_partial=True)
 			else:
 				self._accept_prediction(3)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:5",
+		gesture="kb:NVDA+ctrl+e",
 		description="Accept word prediction 5",
 		category=SCRIPT_CATEGORY
 	)
@@ -523,11 +539,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(4, is_partial=True)
 			else:
 				self._accept_prediction(4)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:6",
+		gesture="kb:NVDA+ctrl+g",
 		description="Accept word prediction 6",
 		category=SCRIPT_CATEGORY
 	)
@@ -539,11 +553,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(5, is_partial=True)
 			else:
 				self._accept_prediction(5)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:7",
+		gesture="kb:NVDA+ctrl+h",
 		description="Accept word prediction 7",
 		category=SCRIPT_CATEGORY
 	)
@@ -555,11 +567,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(6, is_partial=True)
 			else:
 				self._accept_prediction(6)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:8",
+		gesture="kb:NVDA+ctrl+i",
 		description="Accept word prediction 8",
 		category=SCRIPT_CATEGORY
 	)
@@ -571,11 +581,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(7, is_partial=True)
 			else:
 				self._accept_prediction(7)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:9",
+		gesture="kb:NVDA+ctrl+j",
 		description="Accept word prediction 9",
 		category=SCRIPT_CATEGORY
 	)
@@ -587,11 +595,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(8, is_partial=True)
 			else:
 				self._accept_prediction(8)
-		else:
-			gesture.send()
 
 	@scriptHandler.script(
-		gesture="kb:0",
+		gesture="kb:NVDA+ctrl+k",
 		description="Accept word prediction 10",
 		category=SCRIPT_CATEGORY
 	)
@@ -603,8 +609,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._accept_prediction(9, is_partial=True)
 			else:
 				self._accept_prediction(9)
-		else:
-			gesture.send()
 
 	def event_typedCharacter(self, obj, nextHandler, ch):
 		"""Track typed characters to build words and trigger predictions."""
