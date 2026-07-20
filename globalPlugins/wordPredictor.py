@@ -28,6 +28,7 @@ import threading
 import gui
 import gui.settingsDialogs
 import wx
+import api
 
 # Configuration key for the add-on
 CONFIG_KEY = "wordPredictor"
@@ -36,6 +37,7 @@ DEFAULT_CONFIG = {
 	"maxPredictions": 5,
 	"beepBeforePredictions": True,
 	"learningEnabled": True,
+	"disableInTerminals": True,
 }
 
 # Script category for NVDA Input Gestures dialog
@@ -45,6 +47,48 @@ SCRIPT_CATEGORY = "Word Predictor"
 # keys to be released. Without this, characters sent while Ctrl is
 # still held trigger application shortcuts (Ctrl+H, Ctrl+S, etc.).
 TYPE_DELAY_MS = 100
+
+# Known terminal application names. When the focused app matches one
+# of these, word prediction is automatically disabled to avoid
+# interfering with command-line input. This list covers built-in
+# Windows terminals, popular third-party terminal emulators, and WSL.
+TERMINAL_APP_NAMES = frozenset([
+	# Built-in Windows terminals
+	"windowsterminal",  # Windows Terminal
+	"cmd",              # Command Prompt
+	"powershell",       # Windows PowerShell
+	"pwsh",             # PowerShell Core
+	"conhost",          # Console Host
+	# Third-party terminal emulators
+	"cmder",
+	"conemu",
+	"conemu64",
+	"mintty",           # Git Bash
+	"putty",
+	"kitty",
+	"terminus",
+	"hyper",
+	"alacritty",
+	"wezterm",
+	"wezterm-gui",
+	"tabby",
+	"fluent",
+	# WSL
+	"wsl",
+	"bash",
+	# Modern terminals
+	"ghostty",
+	"rio",
+	"waveterm",
+	"contour",
+	"cool-retro-term",
+	# Remote/professional terminals
+	"mobaxterm",
+	"securecrt",
+	"ttermpro",
+	"mremoteng",
+	"royalts",
+])
 
 
 class SettingsPanel(gui.settingsDialogs.SettingsPanel):
@@ -94,6 +138,11 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		self.learningCheckbox.SetValue(to_bool(settings.get("learningEnabled", True)))
 		sizer.Add(self.learningCheckbox, border=10, flag=wx.BOTTOM)
 
+		# Disable in terminals
+		self.terminalCheckbox = wx.CheckBox(self, label="Disable in terminal applications")
+		self.terminalCheckbox.SetValue(to_bool(settings.get("disableInTerminals", True)))
+		sizer.Add(self.terminalCheckbox, border=10, flag=wx.BOTTOM)
+
 	def onSave(self):
 		"""Save settings when the user clicks OK or Apply."""
 		settings = config.conf[CONFIG_KEY]
@@ -101,6 +150,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		settings["maxPredictions"] = int(self.predictionsSpinner.GetValue())
 		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
 		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
+		settings["disableInTerminals"] = self.terminalCheckbox.IsChecked()
 
 		# Apply settings to the running plugin
 		if SettingsPanel._plugin:
@@ -108,6 +158,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._max_predictions = settings["maxPredictions"]
 			SettingsPanel._plugin._beep_enabled = settings["beepBeforePredictions"]
 			SettingsPanel._plugin._learning_enabled = settings["learningEnabled"]
+			SettingsPanel._plugin._disable_in_terminals = settings["disableInTerminals"]
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin that provides proactive word prediction for NVDA users."""
@@ -157,6 +208,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._max_predictions = to_int(settings.get("maxPredictions", 5))
 		self._beep_enabled = to_bool(settings.get("beepBeforePredictions", True))
 		self._learning_enabled = to_bool(settings.get("learningEnabled", True))
+		self._disable_in_terminals = to_bool(settings.get("disableInTerminals", True))
+		self._terminal_cache = {}  # Cache for terminal app detection
 		self._bigrams = {}
 		self._trigrams = {}
 		self._save_lock = threading.Lock()
@@ -166,6 +219,44 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(SettingsPanel)
 		# Load n-grams
 		self._load_ngrams()
+
+	def _is_terminal(self):
+		"""Check if the currently focused application is a terminal.
+
+		Uses two detection methods:
+		1. NVDA's own Terminal class classification (catches any terminal
+		   NVDA already knows about, including ones not in our list).
+		2. App name matching against TERMINAL_APP_NAMES (catches terminals
+		   that NVDA might not classify but are known terminal emulators).
+
+		Results are cached per app name to avoid repeated lookups.
+		Returns True if in a terminal and disableInTerminals is enabled.
+		"""
+		if not self._disable_in_terminals:
+			return False
+		try:
+			obj = api.getFocusObject()
+			if not obj:
+				return False
+			# Check NVDA's own Terminal classification first
+			from NVDAObjects.behaviors import Terminal
+			if isinstance(obj, Terminal):
+				return True
+			# Check app name against known terminal list
+			if not obj.appModule:
+				return False
+			app_name = obj.appModule.appName.lower()
+			if not isinstance(app_name, str):
+				return False
+			# Check cache
+			cached = self._terminal_cache.get(app_name)
+			if cached is not None:
+				return cached
+			result = app_name in TERMINAL_APP_NAMES
+			self._terminal_cache[app_name] = result
+			return result
+		except Exception:
+			return False
 
 	def _load_ngrams(self):
 		"""Load n-gram data from learned file, falling back to bundled data."""
@@ -465,6 +556,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._enabled:
 			return
 
+		# Don't predict in terminal applications
+		if self._is_terminal():
+			return
+
 		# If we're in the middle of typing a word, get partial predictions
 		if self._current_word and len(self._current_word) >= self.MIN_PARTIAL_LENGTH:
 			self._partial_predictions = self._get_partial_predictions(self._current_word)
@@ -635,6 +730,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		nextHandler()
 
 		if not self._enabled:
+			return
+
+		# Don't predict in terminal applications
+		if self._is_terminal():
 			return
 
 		if ch.isalpha() or ch == "'":

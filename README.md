@@ -25,6 +25,7 @@ This add-on solves those problems by working inside NVDA itself. No external TTS
 - **Settings panel:** Configure predictions count, beep, and learning from NVDA's Settings dialog.
 - **Remappable keys:** All shortcuts appear under "Word Predictor" in NVDA's Input Gestures dialog.
 - **Works everywhere:** As a global plugin, prediction works in any application where you type text.
+- **Terminal-aware:** Automatically disables prediction in terminal applications (Windows Terminal, PowerShell, CMD, WSL, PuTTY, and 25+ others). Can be turned off in settings.
 
 ## Key Bindings
 
@@ -75,6 +76,10 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 - **Config:** Settings stored in NVDA's config under the `wordPredictor` key
 
 ## Changelog
+
+### v0.5.0
+
+- **New feature:** Terminal auto-detection. Prediction is automatically disabled in terminal applications (Windows Terminal, PowerShell, CMD, WSL, PuTTY, Alacritty, WezTerm, and 25+ others). Detection uses both NVDA's own Terminal class classification and a list of known terminal app names. Can be toggled off in Settings > Word Predictor > "Disable in terminal applications".
 
 ### v0.4.0
 
