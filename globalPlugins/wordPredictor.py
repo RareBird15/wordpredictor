@@ -361,11 +361,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		For partial predictions, we need to type only the remaining
 		characters (the part the user hasn't typed yet).
 
-		Typing is deferred by TYPE_DELAY_MS to allow modifier keys
-		(NVDA, Ctrl) to be physically released before we send
-		character keystrokes. Without this delay, characters would be
-		sent while Ctrl is still held, triggering application
-		shortcuts (Ctrl+H = history, Ctrl+S = save, etc.).
+		The prediction gesture includes NVDA+Control, so the Control
+		key is still physically held down when this script runs. We
+		must explicitly release it before sending character keystrokes,
+		otherwise the OS interprets the characters as Control+letter
+		shortcuts (Ctrl+S = save, Ctrl+H = history, etc.).
+
+		We also defer the typing slightly (TYPE_DELAY_MS) to give the
+		NVDA modifier key time to release, since NVDA's own key handling
+		may not have completed the key-up by the time our script runs.
 		"""
 		predictions = self._partial_predictions if is_partial else self._predictions
 		if index < 0 or index >= len(predictions):
@@ -390,12 +394,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._predictions = []
 		self._partial_predictions = []
 
-		# Defer typing to allow modifier keys to be released.
-		# The prediction gesture includes NVDA+Ctrl, and if we send
-		# character keystrokes while Ctrl is still held, the OS
-		# interprets them as Ctrl+letter shortcuts.
+		# Defer typing to allow the NVDA modifier key to be released.
+		# Then explicitly release Control before sending characters.
 		def _do_type():
 			import keyboardHandler
+			import winUser
+
+			# Check if Control is currently held down and release it.
+			# The user pressed NVDA+Control+number to trigger this
+			# script, and Control may still be physically held.
+			control_was_down = bool(winUser.getKeyState(winUser.VK_CONTROL) & 0x8000)
+			if control_was_down:
+				# Send Control key-up
+				winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
+
+			# Now type each character of the predicted word
 			for char in chars_to_type:
 				if char.isupper():
 					keyboardHandler.KeyboardInputGesture.fromName(
@@ -405,6 +418,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					keyboardHandler.KeyboardInputGesture.fromName(char).send()
 			# Add a space after the word
 			keyboardHandler.KeyboardInputGesture.fromName("space").send()
+
+			# Restore Control key state if it was held
+			# (so NVDA's modifier tracking stays consistent)
+			if control_was_down:
+				winUser.keybd_event(winUser.VK_CONTROL, 0, 0, 0)
+
 			# Learn from the accepted word
 			self._learn_from_word(word_to_learn)
 			# Announce what was inserted
