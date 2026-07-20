@@ -486,18 +486,24 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._partial_predictions = []
 
 		# Defer typing to allow the NVDA modifier key to be released.
-		# Then explicitly release Control before sending characters.
+		# Then unconditionally release Control before sending characters.
+		# We always release because these scripts are only triggered by
+		# NVDA+Control+number, so Control is guaranteed to be involved.
+		# Using getAsyncKeyState (physical state) not getKeyState (message
+		# queue state) to detect if Control is still held.
 		def _do_type():
 			import keyboardHandler
 			import winUser
 
-			# Check if Control is currently held down and release it.
-			# The user pressed NVDA+Control+number to trigger this
-			# script, and Control may still be physically held.
-			control_was_down = bool(winUser.getKeyState(winUser.VK_CONTROL) & 0x8000)
-			if control_was_down:
-				# Send Control key-up
-				winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
+			# Unconditionally release Control before typing.
+			# getKeyState can return stale data; getAsyncKeyState reads
+			# the physical keyboard state. But even if it says Control
+			# is up, the OS may still have it logically held. Since
+			# these scripts only fire on NVDA+Control+number, always
+			# send a Control key-up to be safe.
+			control_was_down = bool(winUser.getAsyncKeyState(winUser.VK_CONTROL) & 0x8000)
+			# Always send Control key-up (harmless if already up)
+			winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
 
 			# Now type each character of the predicted word
 			for char in chars_to_type:
