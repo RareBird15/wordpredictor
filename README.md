@@ -30,7 +30,7 @@ This add-on solves those problems by working inside NVDA itself. No external TTS
 
 | Key | Action |
 |-----|--------|
-| NVDA+Ctrl+A through NVDA+Ctrl+K | Accept prediction 1-10 (only intercepts when predictions are active) |
+| NVDA+Ctrl+1 through NVDA+Ctrl+0 | Accept prediction 1-10 (only intercepts when predictions are active) |
 | NVDA+Shift+P | Toggle word prediction on/off |
 | NVDA+Shift+O | Request predictions on demand (partial or full) |
 | NVDA+Shift+S | Save learning to disk manually |
@@ -47,7 +47,7 @@ All key bindings can be remapped in NVDA's Input Gestures dialog under the "Word
 
 1. Start typing in any text field.
 2. When you press space after a word, you'll hear a short beep followed by up to 5 predictions.
-3. Press NVDA+Ctrl+A to accept the first prediction, NVDA+Ctrl+B for the second, etc.
+3. Press NVDA+Ctrl+1 to accept the first prediction, NVDA+Ctrl+2 for the second, etc.
 4. The predicted word is typed automatically with a trailing space.
 5. For partial-word prediction, type part of a word and press NVDA+Shift+O.
 6. Press NVDA+Shift+P to toggle prediction on or off.
@@ -78,7 +78,7 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 
 ### v0.4.0
 
-- **Breaking change:** Prediction selection keys changed from bare number keys (1-0) to NVDA+Ctrl+A through NVDA+Ctrl+K. The old keys broke heading navigation in browse mode (keys 1-6) and interfered with typing numbers.
+- **Breaking change:** Prediction selection keys changed from bare number keys (1-0) to NVDA+Ctrl+1 through NVDA+Ctrl+0. The old bare number keys broke heading navigation in browse mode (keys 1-6 jump to heading levels) and interfered with typing numbers in edit fields. NVDA+Ctrl+numbers don't conflict with browse mode (which uses bare numbers) or normal typing.
 - **Bug fix:** Typing of accepted predictions is now deferred by 100ms so modifier keys (NVDA, Ctrl) are physically released before character keystrokes are sent. Previously, characters were sent while Ctrl was still held, triggering application shortcuts (Ctrl+H = history, Ctrl+S = save, etc.).
 - Removed the `gesture.send()` passthrough on number keys since the add-on no longer intercepts bare number keys.
 
