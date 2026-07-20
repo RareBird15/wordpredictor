@@ -486,24 +486,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._partial_predictions = []
 
 		# Defer typing to allow the NVDA modifier key to be released.
-		# Then unconditionally release Control before sending characters.
-		# We always release because these scripts are only triggered by
-		# NVDA+Control+number, so Control is guaranteed to be involved.
-		# Using getAsyncKeyState (physical state) not getKeyState (message
-		# queue state) to detect if Control is still held.
+		# We must release Control before sending characters, but we must
+		# do it inside ignoreInjection() so NVDA doesn't intercept the
+		# key-up event (which would prevent the OS from seeing it).
 		def _do_type():
 			import keyboardHandler
 			import winUser
 
-			# Unconditionally release Control before typing.
-			# getKeyState can return stale data; getAsyncKeyState reads
-			# the physical keyboard state. But even if it says Control
-			# is up, the OS may still have it logically held. Since
-			# these scripts only fire on NVDA+Control+number, always
-			# send a Control key-up to be safe.
-			control_was_down = bool(winUser.getAsyncKeyState(winUser.VK_CONTROL) & 0x8000)
-			# Always send Control key-up (harmless if already up)
-			winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
+			# Release Control inside ignoreInjection so NVDA passes
+			# the key-up through to the OS. Without this, NVDA's
+			# internal_keyUpEvent intercepts the injected key-up
+			# and returns False (consume), so the OS never sees
+			# Control released and characters arrive as Ctrl+letter.
+			with keyboardHandler.ignoreInjection():
+				winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
 
 			# Now type each character of the predicted word
 			for char in chars_to_type:
@@ -516,9 +512,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Add a space after the word
 			keyboardHandler.KeyboardInputGesture.fromName("space").send()
 
-			# Restore Control key state if it was held
-			# (so NVDA's modifier tracking stays consistent)
-			if control_was_down:
+			# Restore Control key state (these scripts only fire on
+			# NVDA+Control+number, so Control was involved)
+			with keyboardHandler.ignoreInjection():
 				winUser.keybd_event(winUser.VK_CONTROL, 0, 0, 0)
 
 			# Learn from the accepted word
