@@ -17,6 +17,84 @@ import os
 import json
 import config
 import threading
+import gui
+import gui.settingsDialogs
+import wx
+
+# Configuration key for the add-on
+CONFIG_KEY = "wordPredictor"
+DEFAULT_CONFIG = {
+	"enabled": True,
+	"maxPredictions": 5,
+	"beepBeforePredictions": True,
+	"learningEnabled": True,
+}
+
+# Script category for NVDA Input Gestures dialog
+SCRIPT_CATEGORY = "Word Predictor"
+
+
+class SettingsPanel(gui.settingsDialogs.SettingsPanel):
+	"""Settings panel for Word Predictor add-on."""
+
+	# Required: title shown in NVDA Settings dialog
+	title = "Word Predictor"
+
+	# Class-level reference to the running plugin, set by GlobalPlugin
+	_plugin = None
+
+	def makeSettings(self, sizer):
+		"""Create the settings controls."""
+		settings = config.conf[CONFIG_KEY]
+
+		# Helper to convert config values to proper Python types
+		def to_bool(val, default=True):
+			if isinstance(val, bool):
+				return val
+			if isinstance(val, str):
+				return val.lower() in ("true", "1", "yes")
+			return default
+
+		def to_int(val, default=5):
+			try:
+				return int(val)
+			except (TypeError, ValueError):
+				return default
+
+		# Enable/disable checkbox
+		self.enabledCheckbox = wx.CheckBox(self, label="Enable word prediction")
+		self.enabledCheckbox.SetValue(to_bool(settings.get("enabled", True)))
+		sizer.Add(self.enabledCheckbox, border=10, flag=wx.BOTTOM)
+
+		# Number of predictions
+		sizer.Add(wx.StaticText(self, label="Number of predictions (1-10):"), border=10, flag=wx.TOP | wx.BOTTOM)
+		self.predictionsSpinner = wx.SpinCtrl(self, min=1, max=10, value=str(to_int(settings.get("maxPredictions", 5))))
+		sizer.Add(self.predictionsSpinner, border=10, flag=wx.BOTTOM)
+
+		# Beep before predictions
+		self.beepCheckbox = wx.CheckBox(self, label="Play beep before announcing predictions")
+		self.beepCheckbox.SetValue(to_bool(settings.get("beepBeforePredictions", True)))
+		sizer.Add(self.beepCheckbox, border=10, flag=wx.BOTTOM)
+
+		# Learning enabled
+		self.learningCheckbox = wx.CheckBox(self, label="Learn from my writing")
+		self.learningCheckbox.SetValue(to_bool(settings.get("learningEnabled", True)))
+		sizer.Add(self.learningCheckbox, border=10, flag=wx.BOTTOM)
+
+	def onSave(self):
+		"""Save settings when the user clicks OK or Apply."""
+		settings = config.conf[CONFIG_KEY]
+		settings["enabled"] = self.enabledCheckbox.IsChecked()
+		settings["maxPredictions"] = int(self.predictionsSpinner.GetValue())
+		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
+		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
+
+		# Apply settings to the running plugin
+		if SettingsPanel._plugin:
+			SettingsPanel._plugin._enabled = settings["enabled"]
+			SettingsPanel._plugin._max_predictions = settings["maxPredictions"]
+			SettingsPanel._plugin._beep_enabled = settings["beepBeforePredictions"]
+			SettingsPanel._plugin._learning_enabled = settings["learningEnabled"]
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
@@ -39,18 +117,42 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self._enabled = True
+		# Set plugin reference for the settings panel
+		SettingsPanel._plugin = self
+		# Initialize config with defaults if not present
+		if CONFIG_KEY not in config.conf:
+			config.conf[CONFIG_KEY] = DEFAULT_CONFIG.copy()
+		settings = config.conf[CONFIG_KEY]
+		# Convert config values to proper types (NVDA config stores as strings)
+		def to_bool(val, default=True):
+			if isinstance(val, bool):
+				return val
+			if isinstance(val, str):
+				return val.lower() in ("true", "1", "yes")
+			return default
+
+		def to_int(val, default=5):
+			try:
+				return int(val)
+			except (TypeError, ValueError):
+				return default
+
+		self._enabled = to_bool(settings.get("enabled", True))
 		self._word_buffer = []  # Last 3 completed words
 		self._current_word = ""  # Word currently being typed
 		self._predictions = []  # Current list of predictions
 		self._partial_predictions = []  # Predictions for partial word
-		self._max_predictions = 5
-		self._learning_enabled = True
+		self._max_predictions = to_int(settings.get("maxPredictions", 5))
+		self._beep_enabled = to_bool(settings.get("beepBeforePredictions", True))
+		self._learning_enabled = to_bool(settings.get("learningEnabled", True))
 		self._bigrams = {}
 		self._trigrams = {}
 		self._save_lock = threading.Lock()
 		self._dirty = False  # True when n-grams have been modified
 		self._chars_since_partial = 0  # Characters typed since last partial prediction
+		# Register settings panel with NVDA
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(SettingsPanel)
+		# Load n-grams
 		self._load_ngrams()
 
 	def _load_ngrams(self):
@@ -181,6 +283,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		return [w for w, _ in matching[:self._max_predictions]]
 
+	def _beep(self):
+		"""Play the prediction alert beep if enabled."""
+		if self._beep_enabled:
+			tones.beep(660, 50)
+
 	def _announce_predictions(self):
 		"""Announce the current predictions through NVDA speech."""
 		if not self._enabled or not self._predictions:
@@ -248,6 +355,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		word = predictions[index]
 
+		# Capitalize "I" if it's a standalone word
+		if word == "i":
+			word = "I"
+
 		# For partial predictions, only type the remaining characters
 		if is_partial and self._current_word:
 			remaining = word[len(self._current_word):]
@@ -258,12 +369,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# Insert the characters by sending keystrokes
 		import keyboardHandler
 		for char in chars_to_type:
-			keyboardHandler.KeyboardInputGesture.fromName(char).send()
+			if char.isupper():
+				# Send shift+letter for uppercase
+				keyboardHandler.KeyboardInputGesture.fromName(f"shift+{char.lower()}").send()
+			else:
+				keyboardHandler.KeyboardInputGesture.fromName(char).send()
 		# Add a space after the word
 		keyboardHandler.KeyboardInputGesture.fromName("space").send()
 
 		# Learn from the accepted word
-		self._learn_from_word(word)
+		self._learn_from_word(word.lower())
 
 		# Clear current word and predictions
 		self._current_word = ""
@@ -275,7 +390,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+shift+p",
-		description="Toggle word prediction on or off"
+		description="Toggle word prediction on or off",
+		category=SCRIPT_CATEGORY
 	)
 	def script_togglePrediction(self, gesture):
 		self._enabled = not self._enabled
@@ -289,7 +405,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+shift+s",
-		description="Save learned word prediction data to disk"
+		description="Save learned word prediction data to disk",
+		category=SCRIPT_CATEGORY
 	)
 	def script_saveLearning(self, gesture):
 		self._save_ngrams()
@@ -297,7 +414,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+shift+o",
-		description="Request word predictions on demand"
+		description="Request word predictions on demand",
+		category=SCRIPT_CATEGORY
 	)
 	def script_onDemandPrediction(self, gesture):
 		"""Request predictions manually without waiting for space."""
@@ -309,14 +427,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._partial_predictions = self._get_partial_predictions(self._current_word)
 			if self._partial_predictions:
 				self._predictions = []  # Clear full predictions
-				tones.beep(660, 50)
+				self._beep()
 				self._announce_partial_predictions()
 			else:
 				# No partial matches, try full predictions for the context
 				self._predictions = self._get_predictions()
 				if self._predictions:
 					self._partial_predictions = []
-					tones.beep(660, 50)
+					self._beep()
 					self._announce_predictions()
 				else:
 					ui.message("No predictions available")
@@ -325,14 +443,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._predictions = self._get_predictions()
 			if self._predictions:
 				self._partial_predictions = []
-				tones.beep(660, 50)
+				self._beep()
 				self._announce_predictions()
 			else:
 				ui.message("No predictions available")
 
 	@scriptHandler.script(
 		gesture="kb:1",
-		description="Accept word prediction 1"
+		description="Accept word prediction 1",
+		category=SCRIPT_CATEGORY
 	)
 	def script_acceptPrediction1(self, gesture):
 		if self._enabled and (self._predictions or self._partial_predictions):
@@ -345,7 +464,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:2",
-		description="Accept word prediction 2"
+		description="Accept word prediction 2",
+		category=SCRIPT_CATEGORY
 	)
 	def script_acceptPrediction2(self, gesture):
 		if self._enabled and (
@@ -360,7 +480,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:3",
-		description="Accept word prediction 3"
+		description="Accept word prediction 3",
+		category=SCRIPT_CATEGORY
 	)
 	def script_acceptPrediction3(self, gesture):
 		if self._enabled and (
@@ -375,7 +496,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:4",
-		description="Accept word prediction 4"
+		description="Accept word prediction 4",
+		category=SCRIPT_CATEGORY
 	)
 	def script_acceptPrediction4(self, gesture):
 		if self._enabled and (
@@ -390,7 +512,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:5",
-		description="Accept word prediction 5"
+		description="Accept word prediction 5",
+		category=SCRIPT_CATEGORY
 	)
 	def script_acceptPrediction5(self, gesture):
 		if self._enabled and (
@@ -411,8 +534,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._enabled:
 			return
 
-		if ch.isalpha():
-			# Building the current word
+		if ch.isalpha() or ch == "'":
+			# Building the current word (including apostrophes for contractions)
 			self._current_word += ch.lower()
 			self._chars_since_partial += 1
 
@@ -445,20 +568,30 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 				if self._predictions:
 					# Short beep to alert that predictions are available
-					tones.beep(660, 50)
+					self._beep()
 					# Announce predictions
 					self._announce_predictions()
 		else:
 			# Punctuation or other character ends the current word
-			# without triggering predictions
 			if self._current_word:
 				word = self._current_word.lower()
 				self._learn_from_word(word)
 				self._current_word = ""
-			self._predictions = []
-			self._partial_predictions = []
+				self._partial_predictions = []
+
+				# Trigger predictions after punctuation too
+				# (period, comma, etc. also end a word)
+				self._predictions = self._get_predictions()
+
+				if self._predictions:
+					self._beep()
+					self._announce_predictions()
+			else:
+				self._predictions = []
+				self._partial_predictions = []
 
 	def terminate(self):
-		"""Save learning when NVDA exits or add-on is unloaded."""
+		"""Save learning and unregister settings panel when NVDA exits."""
 		self._save_ngrams()
+		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(SettingsPanel)
 		super().terminate()
