@@ -485,23 +485,29 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._predictions = []
 		self._partial_predictions = []
 
-		# Defer typing to allow the NVDA modifier key to be released.
-		# We must release Control before sending characters, but we must
-		# do it inside ignoreInjection() so NVDA doesn't intercept the
-		# key-up event (which would prevent the OS from seeing it).
-		def _do_type():
+		# Defer typing until Control is physically released.
+		# The prediction gesture includes NVDA+Control, so Control is
+		# physically held when the script fires. We poll for its release
+		# using getAsyncKeyState (physical keyboard state) and only type
+		# once it's up. This avoids all the problems of manually
+		# injecting key-up events (which can get intercepted by NVDA,
+		# corrupt modifier tracking, or get stuck).
+		def _do_type(retry_count=0):
 			import keyboardHandler
 			import winUser
 
-			# Release Control inside ignoreInjection so NVDA passes
-			# the key-up through to the OS. Without this, NVDA's
-			# internal_keyUpEvent intercepts the injected key-up
-			# and returns False (consume), so the OS never sees
-			# Control released and characters arrive as Ctrl+letter.
-			with keyboardHandler.ignoreInjection():
-				winUser.keybd_event(winUser.VK_CONTROL, 0, 2, 0)
+			# Check if Control is still physically held
+			if winUser.getAsyncKeyState(winUser.VK_CONTROL) & 0x8000:
+				# Retry up to 20 times (50ms each = ~1 second total)
+				if retry_count < 20:
+					wx.CallLater(50, lambda: _do_type(retry_count + 1))
+					return
+				else:
+					# Timeout: Control still held after 1 second
+					ui.message("Unable to insert prediction")
+					return
 
-			# Now type each character of the predicted word
+			# Control is released — type the characters normally
 			for char in chars_to_type:
 				if char.isupper():
 					keyboardHandler.KeyboardInputGesture.fromName(
@@ -511,11 +517,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					keyboardHandler.KeyboardInputGesture.fromName(char).send()
 			# Add a space after the word
 			keyboardHandler.KeyboardInputGesture.fromName("space").send()
-
-			# Restore Control key state (these scripts only fire on
-			# NVDA+Control+number, so Control was involved)
-			with keyboardHandler.ignoreInjection():
-				winUser.keybd_event(winUser.VK_CONTROL, 0, 0, 0)
 
 			# Learn from the accepted word
 			self._learn_from_word(word_to_learn)
