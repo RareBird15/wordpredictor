@@ -30,7 +30,7 @@ This add-on solves those problems by working inside NVDA itself. No external TTS
 
 | Key | Action |
 |-----|--------|
-| 1-5 | Accept prediction (only intercepts when predictions are active) |
+| 1-0 | Accept prediction 1-10 (only intercepts when predictions are active) |
 | NVDA+Shift+P | Toggle word prediction on/off |
 | NVDA+Shift+O | Request predictions on demand (partial or full) |
 | NVDA+Shift+S | Save learning to disk manually |

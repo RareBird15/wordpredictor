@@ -526,6 +526,86 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		else:
 			gesture.send()
 
+	@scriptHandler.script(
+		gesture="kb:6",
+		description="Accept word prediction 6",
+		category=SCRIPT_CATEGORY
+	)
+	def script_acceptPrediction6(self, gesture):
+		if self._enabled and (
+			len(self._predictions) > 5 or len(self._partial_predictions) > 5
+		):
+			if self._partial_predictions:
+				self._accept_prediction(5, is_partial=True)
+			else:
+				self._accept_prediction(5)
+		else:
+			gesture.send()
+
+	@scriptHandler.script(
+		gesture="kb:7",
+		description="Accept word prediction 7",
+		category=SCRIPT_CATEGORY
+	)
+	def script_acceptPrediction7(self, gesture):
+		if self._enabled and (
+			len(self._predictions) > 6 or len(self._partial_predictions) > 6
+		):
+			if self._partial_predictions:
+				self._accept_prediction(6, is_partial=True)
+			else:
+				self._accept_prediction(6)
+		else:
+			gesture.send()
+
+	@scriptHandler.script(
+		gesture="kb:8",
+		description="Accept word prediction 8",
+		category=SCRIPT_CATEGORY
+	)
+	def script_acceptPrediction8(self, gesture):
+		if self._enabled and (
+			len(self._predictions) > 7 or len(self._partial_predictions) > 7
+		):
+			if self._partial_predictions:
+				self._accept_prediction(7, is_partial=True)
+			else:
+				self._accept_prediction(7)
+		else:
+			gesture.send()
+
+	@scriptHandler.script(
+		gesture="kb:9",
+		description="Accept word prediction 9",
+		category=SCRIPT_CATEGORY
+	)
+	def script_acceptPrediction9(self, gesture):
+		if self._enabled and (
+			len(self._predictions) > 8 or len(self._partial_predictions) > 8
+		):
+			if self._partial_predictions:
+				self._accept_prediction(8, is_partial=True)
+			else:
+				self._accept_prediction(8)
+		else:
+			gesture.send()
+
+	@scriptHandler.script(
+		gesture="kb:0",
+		description="Accept word prediction 10",
+		category=SCRIPT_CATEGORY
+	)
+	def script_acceptPrediction10(self, gesture):
+		if self._enabled and (
+			len(self._predictions) > 9 or len(self._partial_predictions) > 9
+		):
+			if self._partial_predictions:
+				self._accept_prediction(9, is_partial=True)
+			else:
+				self._accept_prediction(9)
+		else:
+			gesture.send()
+
 	def event_typedCharacter(self, obj, nextHandler, ch):
 		"""Track typed characters to build words and trigger predictions."""
 		# Always let the character through first
