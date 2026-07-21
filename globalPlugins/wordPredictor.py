@@ -38,6 +38,7 @@ DEFAULT_CONFIG = {
 	"beepBeforePredictions": True,
 	"learningEnabled": True,
 	"disableInTerminals": True,
+	"disabledApps": "",
 }
 
 # Script category for NVDA Input Gestures dialog
@@ -143,6 +144,17 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		self.terminalCheckbox.SetValue(to_bool(settings.get("disableInTerminals", True)))
 		sizer.Add(self.terminalCheckbox, border=10, flag=wx.BOTTOM)
 
+		# Custom app exclusion list
+		sizer.Add(wx.StaticText(self, label="Disable prediction in these applications:"), border=10, flag=wx.TOP | wx.BOTTOM)
+		sizer.Add(wx.StaticText(self, label="Enter one app name per line (e.g. vipmud, mushclient). Names are case-insensitive."), border=5, flag=wx.BOTTOM)
+		self.disabledAppsText = wx.TextCtrl(
+			self,
+			value=str(settings.get("disabledApps", "")),
+			style=wx.TE_MULTILINE | wx.TE_PROCESS_ENTER,
+			size=(400, 100),
+		)
+		sizer.Add(self.disabledAppsText, border=10, flag=wx.EXPAND | wx.BOTTOM)
+
 	def onSave(self):
 		"""Save settings when the user clicks OK or Apply."""
 		settings = config.conf[CONFIG_KEY]
@@ -151,6 +163,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
 		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
 		settings["disableInTerminals"] = self.terminalCheckbox.IsChecked()
+		settings["disabledApps"] = self.disabledAppsText.GetValue()
 
 		# Apply settings to the running plugin
 		if SettingsPanel._plugin:
@@ -159,6 +172,9 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._beep_enabled = settings["beepBeforePredictions"]
 			SettingsPanel._plugin._learning_enabled = settings["learningEnabled"]
 			SettingsPanel._plugin._disable_in_terminals = settings["disableInTerminals"]
+			SettingsPanel._plugin._disabled_app_names = SettingsPanel._plugin._parse_disabled_apps(
+				settings.get("disabledApps", "")
+			)
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin that provides proactive word prediction for NVDA users."""
@@ -209,7 +225,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._beep_enabled = to_bool(settings.get("beepBeforePredictions", True))
 		self._learning_enabled = to_bool(settings.get("learningEnabled", True))
 		self._disable_in_terminals = to_bool(settings.get("disableInTerminals", True))
-		self._terminal_cache = {}  # Cache for terminal app detection
+		self._disabled_app_names = self._parse_disabled_apps(
+			settings.get("disabledApps", "")
+		)
+		self._terminal_cache = {}  # Cache for terminal/disabled app detection
 		self._bigrams = {}
 		self._trigrams = {}
 		self._save_lock = threading.Lock()
@@ -255,6 +274,59 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			result = app_name in TERMINAL_APP_NAMES
 			self._terminal_cache[app_name] = result
 			return result
+		except Exception:
+			return False
+
+	@staticmethod
+	def _parse_disabled_apps(raw):
+		"""Parse the user's disabled-apps text into a frozenset of names.
+
+		Accepts one app name per line. Names are lowercased and stripped.
+		Blank lines and comment lines (starting with #) are ignored.
+		"""
+		if not raw or not isinstance(raw, str):
+			return frozenset()
+		names = set()
+		for line in raw.strip().splitlines():
+			line = line.strip().lower()
+			if line and not line.startswith("#"):
+				names.add(line)
+		return frozenset(names)
+
+	def _should_disable(self):
+		"""Check if prediction should be disabled in the current app.
+
+		Returns True if the focused app is a terminal (and terminal
+		detection is on) OR if it's in the user's custom exclusion list.
+		"""
+		if self._is_terminal():
+			return True
+		return self._is_user_disabled_app()
+
+	def _is_user_disabled_app(self):
+		"""Check if the focused app is in the user's custom exclusion list.
+
+		Uses the same app-name cache as terminal detection. Returns
+		True if the app matches one of the names the user entered in
+		Settings > Word Predictor > "Disable prediction in these apps".
+		"""
+		if not self._disabled_app_names:
+			return False
+		try:
+			obj = api.getFocusObject()
+			if not obj or not obj.appModule:
+				return False
+			app_name = obj.appModule.appName
+			if not isinstance(app_name, str):
+				return False
+			app_name = app_name.lower()
+			# Reuse the terminal cache since both check the same app
+			cached = self._terminal_cache.get(app_name)
+			if cached is not None:
+				# Cache stores terminal result; check user list separately
+				# but still benefit from knowing the app name
+				pass
+			return app_name in self._disabled_app_names
 		except Exception:
 			return False
 
@@ -526,7 +598,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wx.CallLater(TYPE_DELAY_MS, _do_type)
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+shift+p",
+		gesture="kb:NVDA+alt+p",
 		description="Toggle word prediction on or off",
 		category=SCRIPT_CATEGORY
 	)
@@ -541,7 +613,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			self._current_word = ""
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+shift+s",
+		gesture="kb:NVDA+alt+l",
 		description="Save learned word prediction data to disk",
 		category=SCRIPT_CATEGORY
 	)
@@ -550,7 +622,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		ui.message("Word prediction learning saved")
 
 	@scriptHandler.script(
-		gesture="kb:NVDA+shift+o",
+		gesture="kb:NVDA+alt+o",
 		description="Request word predictions on demand",
 		category=SCRIPT_CATEGORY
 	)
@@ -559,8 +631,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._enabled:
 			return
 
-		# Don't predict in terminal applications
-		if self._is_terminal():
+		# Don't predict in terminal or user-excluded applications
+		if self._should_disable():
 			return
 
 		# If we're in the middle of typing a word, get partial predictions
@@ -735,8 +807,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._enabled:
 			return
 
-		# Don't predict in terminal applications
-		if self._is_terminal():
+		# Don't predict in terminal or user-excluded applications
+		if self._should_disable():
 			return
 
 		if ch.isalpha() or ch == "'":
@@ -758,7 +830,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					self._current_word
 				)
 				# Don't auto-announce partials to avoid being too chatty
-				# User can press NVDA+Shift+O to hear them on demand
+				# User can press NVDA+Alt+O to hear them on demand
 
 		elif ch == " ":
 			# Space completes the current word
