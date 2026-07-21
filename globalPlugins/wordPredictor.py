@@ -101,47 +101,48 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 	# Class-level reference to the running plugin, set by GlobalPlugin
 	_plugin = None
 
+	@staticmethod
+	def _to_bool(val, default=True):
+		if isinstance(val, bool):
+			return val
+		if isinstance(val, str):
+			return val.lower() in ("true", "1", "yes")
+		return default
+
+	@staticmethod
+	def _to_int(val, default=5):
+		try:
+			return int(val)
+		except (TypeError, ValueError):
+			return default
+
 	def makeSettings(self, sizer):
 		"""Create the settings controls."""
 		settings = config.conf[CONFIG_KEY]
 
-		# Helper to convert config values to proper Python types
-		def to_bool(val, default=True):
-			if isinstance(val, bool):
-				return val
-			if isinstance(val, str):
-				return val.lower() in ("true", "1", "yes")
-			return default
-
-		def to_int(val, default=5):
-			try:
-				return int(val)
-			except (TypeError, ValueError):
-				return default
-
 		# Enable/disable checkbox
 		self.enabledCheckbox = wx.CheckBox(self, label="Enable word prediction")
-		self.enabledCheckbox.SetValue(to_bool(settings.get("enabled", True)))
+		self.enabledCheckbox.SetValue(self._to_bool(settings.get("enabled", True)))
 		sizer.Add(self.enabledCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Number of predictions
 		sizer.Add(wx.StaticText(self, label="Number of predictions (1-10):"), border=10, flag=wx.TOP | wx.BOTTOM)
-		self.predictionsSpinner = wx.SpinCtrl(self, min=1, max=10, value=str(to_int(settings.get("maxPredictions", 5))))
+		self.predictionsSpinner = wx.SpinCtrl(self, min=1, max=10, value=str(self._to_int(settings.get("maxPredictions", 5))))
 		sizer.Add(self.predictionsSpinner, border=10, flag=wx.BOTTOM)
 
 		# Beep before predictions
 		self.beepCheckbox = wx.CheckBox(self, label="Play beep before announcing predictions")
-		self.beepCheckbox.SetValue(to_bool(settings.get("beepBeforePredictions", True)))
+		self.beepCheckbox.SetValue(self._to_bool(settings.get("beepBeforePredictions", True)))
 		sizer.Add(self.beepCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Learning enabled
 		self.learningCheckbox = wx.CheckBox(self, label="Learn from my writing")
-		self.learningCheckbox.SetValue(to_bool(settings.get("learningEnabled", True)))
+		self.learningCheckbox.SetValue(self._to_bool(settings.get("learningEnabled", True)))
 		sizer.Add(self.learningCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Disable in terminals
 		self.terminalCheckbox = wx.CheckBox(self, label="Disable in terminal applications")
-		self.terminalCheckbox.SetValue(to_bool(settings.get("disableInTerminals", True)))
+		self.terminalCheckbox.SetValue(self._to_bool(settings.get("disableInTerminals", True)))
 		sizer.Add(self.terminalCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Custom app exclusion list
@@ -167,11 +168,11 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 
 		# Apply settings to the running plugin
 		if SettingsPanel._plugin:
-			SettingsPanel._plugin._enabled = settings["enabled"]
-			SettingsPanel._plugin._max_predictions = settings["maxPredictions"]
-			SettingsPanel._plugin._beep_enabled = settings["beepBeforePredictions"]
-			SettingsPanel._plugin._learning_enabled = settings["learningEnabled"]
-			SettingsPanel._plugin._disable_in_terminals = settings["disableInTerminals"]
+			SettingsPanel._plugin._enabled = self._to_bool(settings.get("enabled", True))
+			SettingsPanel._plugin._max_predictions = self._to_int(settings.get("maxPredictions", 5))
+			SettingsPanel._plugin._beep_enabled = self._to_bool(settings.get("beepBeforePredictions", True))
+			SettingsPanel._plugin._learning_enabled = self._to_bool(settings.get("learningEnabled", True))
+			SettingsPanel._plugin._disable_in_terminals = self._to_bool(settings.get("disableInTerminals", True))
 			SettingsPanel._plugin._disabled_app_names = SettingsPanel._plugin._parse_disabled_apps(
 				settings.get("disabledApps", "")
 			)
