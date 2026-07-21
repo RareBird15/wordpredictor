@@ -27,6 +27,7 @@ This add-on solves those problems by working inside NVDA itself. No external TTS
 - **Works everywhere:** As a global plugin, prediction works in any application where you type text.
 - **Terminal-aware:** Automatically disables prediction in terminal applications (Windows Terminal, PowerShell, CMD, WSL, PuTTY, and 25+ others). Can be turned off in settings.
 - **Custom app exclusion:** Add your own apps where you don't want predictions (MUD clients, code editors, chat apps with slash commands, etc.) in Settings > Word Predictor. One app name per line.
+- **Punctuation-aware insertion:** When you accept a prediction after a period, question mark, or exclamation point, it automatically inserts a leading space and capitalizes the first letter. After a comma, semicolon, or colon, it inserts a leading space without capitalization.
 
 ## Key Bindings
 
@@ -77,6 +78,14 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 - **Config:** Settings stored in NVDA's config under the `wordPredictor` key
 
 ## Changelog
+
+### v1.1.0
+
+- **New feature:** Punctuation-aware prediction insertion. When accepting a prediction after punctuation:
+  - After sentence-ending punctuation (period, exclamation, question mark): inserts a leading space and capitalizes the first letter of the predicted word
+  - After clause-ending punctuation (comma, semicolon, colon): inserts a leading space without capitalization
+  - After a space: no leading space (existing behavior, space already present)
+- This fixes the issue where accepting a prediction after punctuation would insert the word with no space and no capitalization, producing text like "Hello.world" instead of "Hello. World"
 
 ### v1.0.0
 

@@ -49,6 +49,12 @@ SCRIPT_CATEGORY = "Word Predictor"
 # still held trigger application shortcuts (Ctrl+H, Ctrl+S, etc.).
 TYPE_DELAY_MS = 100
 
+# Punctuation that ends a sentence (capitalize next word + leading space)
+SENTENCE_ENDING_PUNCT = frozenset(".!?")
+
+# Punctuation that ends a clause (leading space only, no capitalization)
+CLAUSE_ENDING_PUNCT = frozenset(",;:")
+
 # Known terminal application names. When the focused app matches one
 # of these, word prediction is automatically disabled to avoid
 # interfering with command-line input. This list covers built-in
@@ -235,6 +241,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._save_lock = threading.Lock()
 		self._dirty = False  # True when n-grams have been modified
 		self._chars_since_partial = 0  # Characters typed since last partial prediction
+		self._last_ending_char = None  # Last punctuation that ended a word (for spacing/capitalization)
 		# Register settings panel with NVDA
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(SettingsPanel)
 		# Load n-grams
@@ -545,11 +552,33 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if word == "i":
 			word = "I"
 
+		# Determine if we need a leading space and/or capitalization
+		# based on what punctuation ended the previous word.
+		need_leading_space = False
+		capitalize = False
+
+		if not is_partial and self._last_ending_char:
+			if self._last_ending_char in SENTENCE_ENDING_PUNCT:
+				# After . ! ? : add space + capitalize
+				need_leading_space = True
+				capitalize = True
+			elif self._last_ending_char in CLAUSE_ENDING_PUNCT:
+				# After , ; : : add space, no capitalization
+				need_leading_space = True
+
+		# Apply capitalization for sentence start
+		if capitalize and word:
+			word = word[0].upper() + word[1:]
+
 		# For partial predictions, only type the remaining characters
 		if is_partial and self._current_word:
 			chars_to_type = word[len(self._current_word):]
 		else:
 			chars_to_type = word
+
+		# Build the full sequence to type (leading space + word chars)
+		if need_leading_space and not is_partial:
+			chars_to_type = " " + chars_to_type
 
 		word_to_learn = word.lower()
 
@@ -840,6 +869,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._learn_from_word(word)
 				self._current_word = ""
 				self._partial_predictions = []
+				self._last_ending_char = None  # Space already provides separation
 
 				# Get predictions for the next word
 				self._predictions = self._get_predictions()
@@ -856,6 +886,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				self._learn_from_word(word)
 				self._current_word = ""
 				self._partial_predictions = []
+				self._last_ending_char = ch  # Remember for spacing/capitalization
 
 				# Trigger predictions after punctuation too
 				# (period, comma, etc. also end a word)
@@ -867,6 +898,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			else:
 				self._predictions = []
 				self._partial_predictions = []
+				# Track punctuation even if no word was being typed
+				# (e.g., user typed ". " then more punctuation)
+				if ch in SENTENCE_ENDING_PUNCT or ch in CLAUSE_ENDING_PUNCT:
+					self._last_ending_char = ch
 
 	def terminate(self):
 		"""Save learning and unregister settings panel when NVDA exits."""
