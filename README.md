@@ -81,71 +81,7 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 
 ## Changelog
 
-### v1.2.0
-
-- **New feature: Kneser-Ney smoothing.** Predictions are now ranked by interpolated Kneser-Ney probability instead of raw frequency. This produces better predictions because it considers how words behave across many contexts, not just the exact bigram or trigram. For example, after "it is," the old model might rank a word seen once in that trigram above a word seen 69 times after "is" in other contexts. KN smoothing corrects this.
-- **Toggleable:** Smoothing can be turned off in Settings > Word Predictor > "Use Kneser-Ney smoothing" to restore the original frequency-based behavior.
-- **Backward compatible:** Existing learned data from v1.1.0 loads without any migration. The data format is unchanged.
-- **Performance:** Smoothing adds no perceptible latency (under 0.1ms per prediction).
-- **Architecture:** Prediction and learning logic extracted into a separate `kneser_ney.py` module for maintainability.
-
-### v1.1.0
-
-- **New feature:** Punctuation-aware prediction insertion. When accepting a prediction after punctuation:
-  - After sentence-ending punctuation (period, exclamation, question mark): inserts a leading space and capitalizes the first letter of the predicted word
-  - After clause-ending punctuation (comma, semicolon, colon): inserts a leading space without capitalization
-  - After a space: no leading space (existing behavior, space already present)
-- This fixes the issue where accepting a prediction after punctuation would insert the word with no space and no capitalization, producing text like "Hello.world" instead of "Hello. World"
-
-### v1.0.0
-
-First stable release. This version combines a key binding fix with a new feature.
-
-**Breaking change — key bindings:**
-- Management key bindings changed from NVDA+Shift+P/O/S to NVDA+Alt+P/O/L to resolve conflicts with NVDA's built-in commands:
-  - NVDA+Shift+S conflicted with sleep mode toggle (desktop layout) and read selection (laptop layout)
-  - NVDA+Shift+O conflicted with report current navigator object (laptop layout)
-  - NVDA+Shift+P was conflict-free but moved for consistency with the other management keys
-- New bindings: NVDA+Alt+P (toggle), NVDA+Alt+O (on-demand), NVDA+Alt+L (save learning)
-- Prediction selection keys (NVDA+Control+1-0) unchanged
-
-**New feature — custom app exclusion list:**
-- Users can now specify applications where word prediction should be disabled, in addition to the built-in terminal auto-detection
-- Configure in Settings > Word Predictor > "Disable prediction in these applications"
-- Enter one app executable name per line (case-insensitive, comments with #)
-- Useful for MUD clients (VIP Mud, MushClient), code editors, or any app where predictions are unwanted
-- Uses `appModule.appName` for matching, same mechanism as terminal detection
-
-### v0.5.0
-
-- **New feature:** Terminal auto-detection. Prediction is automatically disabled in terminal applications (Windows Terminal, PowerShell, CMD, WSL, PuTTY, Alacritty, WezTerm, and 25+ others). Detection uses both NVDA's own Terminal class classification and a list of known terminal app names. Can be toggled off in Settings > Word Predictor > "Disable in terminal applications".
-
-### v0.4.0
-
-- **Breaking change:** Prediction selection keys changed from bare number keys (1-0) to NVDA+Control+1 through NVDA+Control+0. The old bare number keys broke heading navigation in browse mode (keys 1-6 jump to heading levels) and interfered with typing numbers in edit fields. NVDA+Control+numbers don't conflict with browse mode (which uses bare numbers) or normal typing.
-- **Bug fix:** Typing of accepted predictions is now deferred by 100ms so modifier keys (NVDA, Ctrl) are physically released before character keystrokes are sent. Previously, characters were sent while Ctrl was still held, triggering application shortcuts (Ctrl+H = history, Ctrl+S = save, etc.).
-- Removed the `gesture.send()` passthrough on number keys since the add-on no longer intercepts bare number keys.
-
-### v0.3.0
-
-- Added settings panel in NVDA Settings
-- Added configurable prediction count (1-10)
-- Added learning on/off toggle
-- Added partial-word prediction interval
-- Added NVDA+Alt+O for on-demand predictions
-
-### v0.2.0
-
-- Added persistent learning (saves to NVDA user config)
-- Added partial-word prediction
-- Added on-demand prediction key
-
-### v0.1.0
-
-- Initial release
-- N-gram prediction engine (bigrams + trigrams)
-- Real-time learning
-- Predictions announced through NVDA speech
+See [CHANGELOG.md](CHANGELOG.md) for the full version history.
 
 ## License
 
