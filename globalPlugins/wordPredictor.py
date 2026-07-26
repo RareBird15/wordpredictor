@@ -30,6 +30,425 @@ import gui.settingsDialogs
 import wx
 import api
 
+
+# ---------------------------------------------------------------------------
+# KneserNeyModel: N-gram language model with Kneser-Ney smoothing
+# ---------------------------------------------------------------------------
+# Inlined directly in this file because NVDA's plugin loader scans every .py
+# file in globalPlugins/ and tries to import it as a GlobalPlugin subclass.
+# A separate helper module would cause "module has no attribute 'GlobalPlugin'"
+# errors. Keeping everything in one file is the standard NVDA add-on pattern.
+#
+# When smoothing is enabled, predictions are ranked by interpolated KN
+# probability instead of raw frequency. When disabled, falls back to the
+# original behavior. Data format is backward compatible:
+# {"bigrams": {...}, "trigrams": {...}}
+# All derived statistics are computed at load time from the raw counts.
+
+
+class KneserNeyModel:
+	"""N-gram language model with optional Kneser-Ney smoothing.
+
+	Stores bigram and trigram counts and computes derived statistics
+	for Kneser-Ney interpolation. When smoothing is enabled, predictions
+	are ranked by interpolated KN probability instead of raw frequency.
+	When disabled, falls back to the original frequency-based ranking.
+
+	Data format is backward compatible: {bigrams: {...}, trigrams: {...}}
+	All derived statistics are computed at load time.
+	"""
+
+	# Discount constant for absolute discounting (standard value).
+	# Values between 0.1 and 0.9 work; 0.75 is the most commonly used.
+	D = 0.75
+
+	def __init__(self, use_smoothing=True):
+		self._bigrams = {}
+		self._trigrams = {}
+		self._use_smoothing = use_smoothing
+		# Derived statistics (computed from raw counts)
+		self._bigram_context_counts = {}    # {prev: total_count}
+		self._bigram_context_types = {}     # {prev: num_distinct_next}
+		self._trigram_context_counts = {}   # {key: total_count}
+		self._trigram_context_types = {}    # {key: num_distinct_next}
+		self._continuation_counts = {}      # {word: num_distinct_prev}
+		self._total_bigram_types = 0
+		self._unigram_candidates = []       # sorted [(word, count)]
+		self._unigram_dirty = False
+
+	def set_smoothing(self, enabled):
+		"""Toggle Kneser-Ney smoothing on or off."""
+		self._use_smoothing = enabled
+
+	def load(self, bigrams, trigrams):
+		"""Load raw n-gram counts and compute derived statistics."""
+		self._bigrams = bigrams if bigrams else {}
+		self._trigrams = trigrams if trigrams else {}
+		self._compute_statistics()
+
+	def _compute_statistics(self):
+		"""Compute all derived statistics from raw n-gram counts.
+
+		Called once at load time. After this, incremental updates
+		happen in learn() to keep statistics consistent.
+		"""
+		self._bigram_context_counts = {}
+		self._bigram_context_types = {}
+		self._trigram_context_counts = {}
+		self._trigram_context_types = {}
+		self._continuation_counts = {}
+
+		# Bigram context counts, types, and continuation counts
+		for prev, nexts in self._bigrams.items():
+			self._bigram_context_counts[prev] = sum(nexts.values())
+			self._bigram_context_types[prev] = len(nexts)
+			for word in nexts:
+				self._continuation_counts[word] = self._continuation_counts.get(word, 0) + 1
+
+		# Trigram context counts and types
+		for key, nexts in self._trigrams.items():
+			self._trigram_context_counts[key] = sum(nexts.values())
+			self._trigram_context_types[key] = len(nexts)
+
+		# Total distinct bigram types (N_{1+}(., .))
+		self._total_bigram_types = sum(len(nexts) for nexts in self._bigrams.values())
+
+		# Pre-sort unigram candidates by continuation count
+		self._unigram_candidates = sorted(
+			self._continuation_counts.items(),
+			key=lambda x: x[1],
+			reverse=True
+		)
+		self._unigram_dirty = False
+
+	def learn(self, word, word_buffer):
+		"""Update n-gram counts with a new word.
+
+		Args:
+			word: The word that was just completed (lowercase).
+			word_buffer: List of last 2+ completed words (before this one).
+			             The caller manages the buffer; this method does
+			             NOT append to it.
+		"""
+		if not word:
+			return
+
+		# Update bigram: prev -> word
+		if word_buffer:
+			prev = word_buffer[-1]
+			if prev not in self._bigrams:
+				self._bigrams[prev] = {}
+			is_new_pair = word not in self._bigrams[prev]
+			if is_new_pair:
+				self._bigrams[prev][word] = 0
+				# New distinct bigram pair: update continuation count
+				self._continuation_counts[word] = self._continuation_counts.get(word, 0) + 1
+				# New distinct next word for this context
+				self._bigram_context_types[prev] = self._bigram_context_types.get(prev, 0) + 1
+				self._total_bigram_types += 1
+				self._unigram_dirty = True
+			self._bigrams[prev][word] += 1
+			self._bigram_context_counts[prev] = self._bigram_context_counts.get(prev, 0) + 1
+
+		# Update trigram: (word_buffer[-2], word_buffer[-1]) -> word
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			if key not in self._trigrams:
+				self._trigrams[key] = {}
+			is_new_triple = word not in self._trigrams[key]
+			if is_new_triple:
+				self._trigrams[key][word] = 0
+				self._trigram_context_types[key] = self._trigram_context_types.get(key, 0) + 1
+			self._trigrams[key][word] += 1
+			self._trigram_context_counts[key] = self._trigram_context_counts.get(key, 0) + 1
+
+	def predict(self, word_buffer, max_predictions=5):
+		"""Get next-word predictions.
+
+		Args:
+			word_buffer: List of last 2+ completed words.
+			max_predictions: Maximum number of predictions to return.
+
+		Returns:
+			List of predicted words, best first.
+		"""
+		if not self._bigrams:
+			return []
+		if self._use_smoothing:
+			return self._predict_kn(word_buffer, max_predictions)
+		return self._predict_frequency(word_buffer, max_predictions)
+
+	def _predict_frequency(self, word_buffer, max_predictions=5):
+		"""Original frequency-based prediction (backward compatible)."""
+		predictions = []
+
+		# Try trigram first (more context = better prediction)
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			if key in self._trigrams:
+				sorted_preds = sorted(
+					self._trigrams[key].items(),
+					key=lambda x: x[1],
+					reverse=True
+				)
+				predictions = [p[0] for p in sorted_preds[:max_predictions]]
+
+		# Fall back to bigram if trigram didn't find enough
+		if len(predictions) < max_predictions and word_buffer:
+			last_word = word_buffer[-1]
+			if last_word in self._bigrams:
+				sorted_preds = sorted(
+					self._bigrams[last_word].items(),
+					key=lambda x: x[1],
+					reverse=True
+				)
+				bigram_preds = [p[0] for p in sorted_preds[:max_predictions]]
+				for p in bigram_preds:
+					if p not in predictions:
+						predictions.append(p)
+						if len(predictions) >= max_predictions:
+							break
+
+		return predictions[:max_predictions]
+
+	def _predict_kn(self, word_buffer, max_predictions=5):
+		"""Kneser-Ney smoothed prediction.
+
+		Gathers candidates from all three levels (trigram, bigram,
+		unigram), scores each by interpolated KN probability, and
+		returns the top N.
+		"""
+		# Refresh unigram candidates if dirty (new words learned)
+		if self._unigram_dirty:
+			self._unigram_candidates = sorted(
+				self._continuation_counts.items(),
+				key=lambda x: x[1],
+				reverse=True
+			)
+			self._unigram_dirty = False
+
+		# Gather candidates from all levels
+		candidates = set()
+
+		# Trigram candidates: words that follow the 2-word context
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			if key in self._trigrams:
+				candidates.update(self._trigrams[key].keys())
+
+		# Bigram candidates: words that follow the last word
+		if word_buffer:
+			prev = word_buffer[-1]
+			if prev in self._bigrams:
+				candidates.update(self._bigrams[prev].keys())
+
+		# Unigram candidates: top words by continuation probability
+		# These provide backoff for words not seen in the current context
+		for word, _ in self._unigram_candidates[:max_predictions * 3]:
+			candidates.add(word)
+
+		if not candidates:
+			return []
+
+		# Score each candidate by interpolated KN probability
+		scored = [(word, self._kn_probability(word, word_buffer)) for word in candidates]
+		scored.sort(key=lambda x: x[1], reverse=True)
+
+		return [word for word, _ in scored[:max_predictions]]
+
+	def _kn_probability(self, word, word_buffer):
+		"""Compute interpolated Kneser-Ney probability for a word.
+
+		P(w | context) = max(count - D, 0) / context_count
+		               + lambda * P_lower(w | shorter_context)
+
+		The interpolation cascades: trigram -> bigram -> unigram.
+		At each level, the discounted high-order probability is
+		blended with the lower-order probability via lambda.
+		"""
+		# Trigram level
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			trigram_count = self._trigrams.get(key, {}).get(word, 0)
+			context_count = self._trigram_context_counts.get(key, 0)
+			context_types = self._trigram_context_types.get(key, 0)
+
+			if context_count > 0:
+				# Discounted trigram probability
+				first_term = max(trigram_count - self.D, 0) / context_count
+				# Interpolation weight: how much probability mass to
+				# give to the lower-order (bigram) model
+				lambda_val = (self.D / context_count) * context_types
+				return first_term + lambda_val * self._bigram_kn(word, word_buffer[-1])
+
+		# No trigram context: fall back to bigram level
+		if word_buffer:
+			return self._bigram_kn(word, word_buffer[-1])
+
+		# No context at all: unigram only
+		return self._unigram_kn(word)
+
+	def _bigram_kn(self, word, prev_word):
+		"""KN probability at the bigram level.
+
+		P(w | prev) = max(count(prev, w) - D, 0) / count(prev)
+		           + lambda(prev) * P_unigram(w)
+		"""
+		bigram_count = self._bigrams.get(prev_word, {}).get(word, 0)
+		context_count = self._bigram_context_counts.get(prev_word, 0)
+		context_types = self._bigram_context_types.get(prev_word, 0)
+
+		if context_count > 0:
+			first_term = max(bigram_count - self.D, 0) / context_count
+			lambda_val = (self.D / context_count) * context_types
+			return first_term + lambda_val * self._unigram_kn(word)
+
+		# No bigram context: unigram only
+		return self._unigram_kn(word)
+
+	def _unigram_kn(self, word):
+		"""KN continuation probability at the unigram level.
+
+		Instead of raw word frequency, uses continuation probability:
+		how many distinct contexts does this word appear in?
+
+		P(w) = |{prev : (prev, w) seen at least once}| / total_bigram_types
+
+		This rewards words that appear in many different contexts
+		(like "the", "is", "and") over words that appear frequently
+		but only in specific phrases (like "York" after "New").
+		"""
+		if self._total_bigram_types == 0:
+			return 0.0
+		return self._continuation_counts.get(word, 0) / self._total_bigram_types
+
+	def predict_partial(self, partial, word_buffer, max_predictions=5):
+		"""Get partial-word predictions.
+
+		Args:
+			partial: The partially typed word (at least 2 characters).
+			word_buffer: List of last 2+ completed words.
+			max_predictions: Maximum number of predictions to return.
+
+		Returns:
+			List of predicted completions, best first.
+		"""
+		if not partial or len(partial) < 2 or not self._bigrams:
+			return []
+		if self._use_smoothing:
+			return self._predict_partial_kn(partial, word_buffer, max_predictions)
+		return self._predict_partial_frequency(partial, word_buffer, max_predictions)
+
+	def _predict_partial_frequency(self, partial, word_buffer, max_predictions=5):
+		"""Original frequency-based partial prediction (backward compatible)."""
+		partial_lower = partial.lower()
+		matching = []
+
+		# Gather from trigrams first
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			if key in self._trigrams:
+				for word, count in self._trigrams[key].items():
+					if word.startswith(partial_lower) and word not in matching:
+						matching.append((word, count))
+
+		# Then from bigrams
+		if word_buffer:
+			last_word = word_buffer[-1]
+			if last_word in self._bigrams:
+				for word, count in self._bigrams[last_word].items():
+					if word.startswith(partial_lower):
+						already = any(w == word for w, _ in matching)
+						if not already:
+							matching.append((word, count))
+
+		# Global bigram scan as fallback for words that might follow
+		# any word and start with the partial
+		if len(matching) < 3:
+			for prev_word, nexts in self._bigrams.items():
+				for word, count in nexts.items():
+					if word.startswith(partial_lower):
+						already = any(w == word for w, _ in matching)
+						if not already:
+							matching.append((word, count))
+				if len(matching) >= 10:
+					break
+
+		matching.sort(key=lambda x: x[1], reverse=True)
+		return [w for w, _ in matching[:max_predictions]]
+
+	def _predict_partial_kn(self, partial, word_buffer, max_predictions=5):
+		"""KN-smoothed partial-word prediction.
+
+		Same candidate gathering as frequency mode, but ranks by
+		KN probability instead of raw count. This means a word that
+		starts with the partial AND fits the context well will rank
+		higher than a more frequent word that doesn't fit the context.
+		"""
+		partial_lower = partial.lower()
+		candidates = set()
+
+		# Gather candidates that start with the partial
+		if len(word_buffer) >= 2:
+			key = f"{word_buffer[-2]} {word_buffer[-1]}"
+			if key in self._trigrams:
+				for word in self._trigrams[key]:
+					if word.startswith(partial_lower):
+						candidates.add(word)
+
+		if word_buffer:
+			prev = word_buffer[-1]
+			if prev in self._bigrams:
+				for word in self._bigrams[prev]:
+					if word.startswith(partial_lower):
+						candidates.add(word)
+
+		# Global bigram scan as fallback
+		if len(candidates) < 3:
+			for prev_word, nexts in self._bigrams.items():
+				for word in nexts:
+					if word.startswith(partial_lower):
+						candidates.add(word)
+				if len(candidates) >= 10:
+					break
+
+		if not candidates:
+			return []
+
+		# Score by KN probability
+		scored = [(word, self._kn_probability(word, word_buffer)) for word in candidates]
+		scored.sort(key=lambda x: x[1], reverse=True)
+
+		return [word for word, _ in scored[:max_predictions]]
+
+	def to_dict(self):
+		"""Serialize raw counts for persistence.
+
+		Format is identical to the original: {"bigrams": {...}, "trigrams": {...}}
+		Derived statistics are NOT saved; they are recomputed at load time.
+		"""
+		return {"bigrams": self._bigrams, "trigrams": self._trigrams}
+
+	@property
+	def bigrams(self):
+		"""Direct access to bigram data (for backward compatibility)."""
+		return self._bigrams
+
+	@property
+	def trigrams(self):
+		"""Direct access to trigram data (for backward compatibility)."""
+		return self._trigrams
+
+	@property
+	def has_data(self):
+		"""True if the model has any n-gram data loaded."""
+		return bool(self._bigrams)
+
+
+# ---------------------------------------------------------------------------
+# End KneserNeyModel
+# ---------------------------------------------------------------------------
+
 # Configuration key for the add-on
 CONFIG_KEY = "wordPredictor"
 DEFAULT_CONFIG = {
@@ -39,6 +458,7 @@ DEFAULT_CONFIG = {
 	"learningEnabled": True,
 	"disableInTerminals": True,
 	"disabledApps": "",
+	"useSmoothing": True,
 }
 
 # Script category for NVDA Input Gestures dialog
@@ -146,6 +566,11 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		self.learningCheckbox.SetValue(self._to_bool(settings.get("learningEnabled", True)))
 		sizer.Add(self.learningCheckbox, border=10, flag=wx.BOTTOM)
 
+		# Kneser-Ney smoothing
+		self.smoothingCheckbox = wx.CheckBox(self, label="Use Kneser-Ney smoothing (better predictions, same speed)")
+		self.smoothingCheckbox.SetValue(self._to_bool(settings.get("useSmoothing", True)))
+		sizer.Add(self.smoothingCheckbox, border=10, flag=wx.BOTTOM)
+
 		# Disable in terminals
 		self.terminalCheckbox = wx.CheckBox(self, label="Disable in terminal applications")
 		self.terminalCheckbox.SetValue(self._to_bool(settings.get("disableInTerminals", True)))
@@ -169,6 +594,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		settings["maxPredictions"] = int(self.predictionsSpinner.GetValue())
 		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
 		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
+		settings["useSmoothing"] = self.smoothingCheckbox.IsChecked()
 		settings["disableInTerminals"] = self.terminalCheckbox.IsChecked()
 		settings["disabledApps"] = self.disabledAppsText.GetValue()
 
@@ -178,6 +604,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._max_predictions = self._to_int(settings.get("maxPredictions", 5))
 			SettingsPanel._plugin._beep_enabled = self._to_bool(settings.get("beepBeforePredictions", True))
 			SettingsPanel._plugin._learning_enabled = self._to_bool(settings.get("learningEnabled", True))
+			SettingsPanel._plugin._model.set_smoothing(self._to_bool(settings.get("useSmoothing", True)))
 			SettingsPanel._plugin._disable_in_terminals = self._to_bool(settings.get("disableInTerminals", True))
 			SettingsPanel._plugin._disabled_app_names = SettingsPanel._plugin._parse_disabled_apps(
 				settings.get("disabledApps", "")
@@ -236,8 +663,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			settings.get("disabledApps", "")
 		)
 		self._terminal_cache = {}  # Cache for terminal/disabled app detection
-		self._bigrams = {}
-		self._trigrams = {}
+		self._model = KneserNeyModel(
+			use_smoothing=to_bool(settings.get("useSmoothing", True))
+		)
 		self._save_lock = threading.Lock()
 		self._dirty = False  # True when n-grams have been modified
 		self._chars_since_partial = 0  # Characters typed since last partial prediction
@@ -246,6 +674,35 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(SettingsPanel)
 		# Load n-grams
 		self._load_ngrams()
+
+	def _is_edit_field(self):
+		"""Check if the currently focused object is an editable text field.
+
+		NVDA assigns ROLE_EDITABLETEXT to edit fields, document areas,
+		and other text input controls. This catches standard edit fields,
+		rich text editors, document content areas, and most text inputs.
+
+		For browse mode documents (web pages, emails), NVDA uses a
+		virtual buffer with its own editable text role, so predictions
+		will work in those contexts too.
+
+		Returns True if the focused object is an editable text field.
+		"""
+		try:
+			obj = api.getFocusObject()
+			if not obj:
+				return False
+			from controlTypes import Role
+			if obj.role == Role.EDITABLETEXT:
+				return True
+			# Also check the tree interceptor (browse mode documents like
+			# web pages and emails where you can type in text areas)
+			ti = obj.treeInterceptor
+			if ti and hasattr(ti, 'role') and ti.role == Role.EDITABLETEXT:
+				return True
+			return False
+		except Exception:
+			return False
 
 	def _is_terminal(self):
 		"""Check if the currently focused application is a terminal.
@@ -346,8 +803,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if os.path.exists(learned_path):
 				with open(learned_path, "r", encoding="utf-8") as f:
 					data = json.load(f)
-				self._bigrams = data.get("bigrams", {})
-				self._trigrams = data.get("trigrams", {})
+				self._model.load(
+					data.get("bigrams", {}),
+					data.get("trigrams", {})
+				)
 				return
 		except Exception:
 			pass
@@ -356,11 +815,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			with open(self.BUNDLED_DATA_FILE, "r", encoding="utf-8") as f:
 				data = json.load(f)
-			self._bigrams = data.get("bigrams", {})
-			self._trigrams = data.get("trigrams", {})
+			self._model.load(
+				data.get("bigrams", {}),
+				data.get("trigrams", {})
+			)
 		except Exception:
-			self._bigrams = {}
-			self._trigrams = {}
+			self._model.load({}, {})
 
 	def _save_ngrams(self):
 		"""Save n-gram data to the learned file in NVDA's user config."""
@@ -369,10 +829,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		try:
 			with self._save_lock:
-				data = {
-					"bigrams": self._bigrams,
-					"trigrams": self._trigrams,
-				}
+				data = self._model.to_dict()
 				with open(self._learned_data_file, "w", encoding="utf-8") as f:
 					json.dump(data, f)
 				self._dirty = False
@@ -382,89 +839,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _get_predictions(self):
 		"""Get word predictions based on the current word buffer."""
-		if not self._bigrams:
-			return []
-
-		predictions = []
-
-		# Try trigram first (more context = better prediction)
-		if len(self._word_buffer) >= 2:
-			key = f"{self._word_buffer[-2]} {self._word_buffer[-1]}"
-			if key in self._trigrams:
-				sorted_preds = sorted(
-					self._trigrams[key].items(),
-					key=lambda x: x[1],
-					reverse=True
-				)
-				predictions = [p[0] for p in sorted_preds[:self._max_predictions]]
-
-		# Fall back to bigram if trigram didn't find enough
-		if len(predictions) < self._max_predictions and self._word_buffer:
-			last_word = self._word_buffer[-1]
-			if last_word in self._bigrams:
-				sorted_preds = sorted(
-					self._bigrams[last_word].items(),
-					key=lambda x: x[1],
-					reverse=True
-				)
-				bigram_preds = [p[0] for p in sorted_preds[:self._max_predictions]]
-				for p in bigram_preds:
-					if p not in predictions:
-						predictions.append(p)
-					if len(predictions) >= self._max_predictions:
-						break
-
-		return predictions[:self._max_predictions]
+		return self._model.predict(self._word_buffer, self._max_predictions)
 
 	def _get_partial_predictions(self, partial):
 		"""Get predictions for a partially typed word.
 
-		Looks at ALL next-word predictions for the current context
-		and filters to only words that start with the partial text.
-		This searches beyond the top 5 so that less common but matching
-		words still appear.
+		Delegates to the model, which uses KN-smoothed probability
+		when smoothing is enabled, or frequency-based ranking otherwise.
 		"""
-		if not partial or len(partial) < self.MIN_PARTIAL_LENGTH:
-			return []
-
-		partial_lower = partial.lower()
-		matching = []
-
-		# Gather all candidate words from trigrams first
-		if len(self._word_buffer) >= 2:
-			key = f"{self._word_buffer[-2]} {self._word_buffer[-1]}"
-			if key in self._trigrams:
-				for word, count in self._trigrams[key].items():
-					if word.startswith(partial_lower) and word not in matching:
-						matching.append((word, count))
-
-		# Then from bigrams
-		if self._word_buffer:
-			last_word = self._word_buffer[-1]
-			if last_word in self._bigrams:
-				for word, count in self._bigrams[last_word].items():
-					if word.startswith(partial_lower):
-						# Check if already found via trigram
-						already = any(w == word for w, _ in matching)
-						if not already:
-							matching.append((word, count))
-
-		# Also search all bigrams globally as a fallback for words
-		# that might follow any word and start with the partial
-		if len(matching) < 3:
-			for prev_word, nexts in self._bigrams.items():
-				for word, count in nexts.items():
-					if word.startswith(partial_lower):
-						already = any(w == word for w, _ in matching)
-						if not already:
-							matching.append((word, count))
-				if len(matching) >= 10:
-					break
-
-		# Sort by frequency (most common first)
-		matching.sort(key=lambda x: x[1], reverse=True)
-
-		return [w for w, _ in matching[:self._max_predictions]]
+		return self._model.predict_partial(
+			partial, self._word_buffer, self._max_predictions
+		)
 
 	def _beep(self):
 		"""Play the prediction alert beep if enabled."""
@@ -500,23 +885,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		word = word.lower()
 
-		# Update bigram: previous word -> this word
-		if self._word_buffer:
-			prev = self._word_buffer[-1]
-			if prev not in self._bigrams:
-				self._bigrams[prev] = {}
-			if word not in self._bigrams[prev]:
-				self._bigrams[prev][word] = 0
-			self._bigrams[prev][word] += 1
-
-		# Update trigram: (two words ago, previous word) -> this word
-		if len(self._word_buffer) >= 2:
-			key = f"{self._word_buffer[-2]} {self._word_buffer[-1]}"
-			if key not in self._trigrams:
-				self._trigrams[key] = {}
-			if word not in self._trigrams[key]:
-				self._trigrams[key][word] = 0
-			self._trigrams[key][word] += 1
+		# Delegate to the model, which updates both raw counts and
+		# derived statistics (continuation counts, context types)
+		# incrementally.
+		self._model.learn(word, self._word_buffer)
 
 		# Add word to buffer (keep last 3)
 		self._word_buffer.append(word)
@@ -663,6 +1035,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Don't predict in terminal or user-excluded applications
 		if self._should_disable():
+			return
+
+		# Only predict when focused on an editable text field
+		if not self._is_edit_field():
 			return
 
 		# If we're in the middle of typing a word, get partial predictions
@@ -839,6 +1215,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Don't predict in terminal or user-excluded applications
 		if self._should_disable():
+			return
+
+		# Only predict when focused on an editable text field
+		if not self._is_edit_field():
 			return
 
 		if ch.isalpha() or ch == "'":

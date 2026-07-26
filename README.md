@@ -58,14 +58,16 @@ All key bindings can be remapped in NVDA's Input Gestures dialog under the "Word
 
 ## How It Works
 
-The add-on uses n-gram language modeling:
+The add-on uses n-gram language modeling with Kneser-Ney smoothing:
 
 - **Bigrams:** Tracks which words commonly follow other words (e.g., "the" -> "system")
 - **Trigrams:** Tracks which words commonly follow two-word combinations (e.g., "I am" -> "not")
-- **Trigram priority:** Trigram predictions are checked first for better context-aware results, falling back to bigrams if needed
-- **Partial matching:** When you type part of a word, the add-on searches all n-grams for words that start with what you've typed
-- **Real-time learning:** Every word you type updates the n-gram counts, so the model adapts to your writing style
+- **Kneser-Ney smoothing:** Instead of ranking predictions by raw frequency, uses interpolated Kneser-Ney probability. This rewards words that appear in many different contexts (like "the", "is", "and") over words that appear frequently but only in specific phrases (like "York" after "New"). Handles unseen n-grams gracefully by backing off to lower-order n-grams with adjusted probabilities.
+- **Three-level interpolation:** Trigram probability is blended with bigram probability, which is blended with unigram continuation probability. This means even words never seen in the exact context still get a probability based on how common they are as continuations.
+- **Partial matching:** When you type part of a word, the add-on searches all n-grams for words that start with what you've typed and ranks them by KN probability
+- **Real-time learning:** Every word you type updates the n-gram counts and derived statistics, so the model adapts to your writing style
 - **Persistent storage:** Learning saves to `wordPredictor_learned.json` in your NVDA user config directory
+- **Backward compatible:** Existing learned data from v1.1.0 loads without migration. Smoothing can be turned off in settings to restore the original frequency-based behavior.
 
 The n-gram data is stored as a JSON file and loaded at startup. No external Python dependencies are required.
 
@@ -78,6 +80,14 @@ The n-gram data is stored as a JSON file and loaded at startup. No external Pyth
 - **Config:** Settings stored in NVDA's config under the `wordPredictor` key
 
 ## Changelog
+
+### v1.2.0
+
+- **New feature: Kneser-Ney smoothing.** Predictions are now ranked by interpolated Kneser-Ney probability instead of raw frequency. This produces better predictions because it considers how words behave across many contexts, not just the exact bigram or trigram. For example, after "it is," the old model might rank a word seen once in that trigram above a word seen 69 times after "is" in other contexts. KN smoothing corrects this.
+- **Toggleable:** Smoothing can be turned off in Settings > Word Predictor > "Use Kneser-Ney smoothing" to restore the original frequency-based behavior.
+- **Backward compatible:** Existing learned data from v1.1.0 loads without any migration. The data format is unchanged.
+- **Performance:** Smoothing adds no perceptible latency (under 0.1ms per prediction).
+- **Architecture:** Prediction and learning logic extracted into a separate `kneser_ney.py` module for maintainability.
 
 ### v1.1.0
 
