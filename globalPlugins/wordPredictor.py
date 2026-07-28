@@ -578,14 +578,27 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 
 		# Custom app exclusion list
 		sizer.Add(wx.StaticText(self, label="Disable prediction in these applications:"), border=10, flag=wx.TOP | wx.BOTTOM)
-		sizer.Add(wx.StaticText(self, label="Enter one app name per line (e.g. vipmud, mushclient). Names are case-insensitive."), border=5, flag=wx.BOTTOM)
+		sizer.Add(wx.StaticText(self, label="Enter app names separated by commas (e.g. vipmud, mushclient). Names are case-insensitive."), border=5, flag=wx.BOTTOM)
 		self.disabledAppsText = wx.TextCtrl(
 			self,
 			value=str(settings.get("disabledApps", "")),
-			style=wx.TE_MULTILINE | wx.TE_PROCESS_ENTER,
-			size=(400, 100),
+			size=(400, -1),
 		)
 		sizer.Add(self.disabledAppsText, border=10, flag=wx.EXPAND | wx.BOTTOM)
+
+	def _onDisabledAppsKeyDown(self, event):
+		"""Intercept Enter key in the disabled apps edit box to insert a
+		newline instead of letting the dialog's default OK button activate."""
+		key_code = event.GetKeyCode()
+		if key_code in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
+			# Insert a newline at the cursor position
+			text_ctrl = event.GetEventObject()
+			cursor_pos = text_ctrl.GetInsertionPoint()
+			text_ctrl.WriteText("\n")
+			# Don't skip the event — we handled it
+			return
+		# Let all other keys pass through normally
+		event.Skip()
 
 	def onSave(self):
 		"""Save settings when the user clicks OK or Apply."""
@@ -746,16 +759,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def _parse_disabled_apps(raw):
 		"""Parse the user's disabled-apps text into a frozenset of names.
 
-		Accepts one app name per line. Names are lowercased and stripped.
-		Blank lines and comment lines (starting with #) are ignored.
+		Accepts app names separated by commas or newlines. Names are
+		lowercased and stripped. Blank entries are ignored.
 		"""
 		if not raw or not isinstance(raw, str):
 			return frozenset()
 		names = set()
-		for line in raw.strip().splitlines():
-			line = line.strip().lower()
-			if line and not line.startswith("#"):
-				names.add(line)
+		# Split on commas and/or newlines to support both formats
+		for item in raw.replace("\n", ",").split(","):
+			item = item.strip().lower()
+			if item and not item.startswith("#"):
+				names.add(item)
 		return frozenset(names)
 
 	def _should_disable(self):
@@ -1219,6 +1233,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# Only predict when focused on an editable text field
 		if not self._is_edit_field():
+			return
+
+		if ch == "\x08":
+			# Backspace: remove last character from current word instead of
+			# treating it as punctuation that triggers a new prediction cycle
+			if self._current_word:
+				self._current_word = self._current_word[:-1]
+				self._partial_predictions = []
+			# Don't trigger predictions on backspace
 			return
 
 		if ch.isalpha() or ch == "'":

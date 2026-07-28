@@ -2,6 +2,12 @@
 
 All notable changes to WordPredictor will be documented in this file.
 
+## [1.3.1] - 2026-07-27
+
+### Fixed
+- Backspace no longer triggers a new prediction cycle. Previously, pressing backspace was treated as punctuation, which ended the current word and generated predictions. Now backspace removes the last character from the current word and does not trigger predictions.
+- Disabled apps settings field now uses comma-separated input instead of one-per-line. NVDA's settings dialog framework captures the Enter key for the default OK button, making multi-line entry impossible. The parser now accepts both commas and newlines as separators.
+
 ## [1.3.0] - 2026-07-26
 
 ### Added
