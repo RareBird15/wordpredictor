@@ -2,6 +2,11 @@
 
 All notable changes to WordPredictor will be documented in this file.
 
+## [1.4.0] - 2026-07-29
+
+### Changed
+- Bundled n-gram corpus expanded from 5,096 bigrams and 32,625 trigrams (1.6 MB) to 45,859 bigrams and 300,384 trigrams (25.4 MB), trained on 11 million tokens from 116 Project Gutenberg books. Predictions should be significantly more accurate with broader vocabulary coverage.
+
 ## [1.3.1] - 2026-07-27
 
 ### Fixed

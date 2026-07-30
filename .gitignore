@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+data/corpus/
+data/ngrams.json.bak
+*.nvda-addon
