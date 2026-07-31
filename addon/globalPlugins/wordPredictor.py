@@ -67,13 +67,13 @@ class KneserNeyModel:
 		self._trigrams = {}
 		self._use_smoothing = use_smoothing
 		# Derived statistics (computed from raw counts)
-		self._bigram_context_counts = {}    # {prev: total_count}
-		self._bigram_context_types = {}     # {prev: num_distinct_next}
-		self._trigram_context_counts = {}   # {key: total_count}
-		self._trigram_context_types = {}    # {key: num_distinct_next}
-		self._continuation_counts = {}      # {word: num_distinct_prev}
+		self._bigram_context_counts = {}  # {prev: total_count}
+		self._bigram_context_types = {}  # {prev: num_distinct_next}
+		self._trigram_context_counts = {}  # {key: total_count}
+		self._trigram_context_types = {}  # {key: num_distinct_next}
+		self._continuation_counts = {}  # {word: num_distinct_prev}
 		self._total_bigram_types = 0
-		self._unigram_candidates = []       # sorted [(word, count)]
+		self._unigram_candidates = []  # sorted [(word, count)]
 		self._unigram_dirty = False
 
 	def set_smoothing(self, enabled):
@@ -117,7 +117,7 @@ class KneserNeyModel:
 		self._unigram_candidates = sorted(
 			self._continuation_counts.items(),
 			key=lambda x: x[1],
-			reverse=True
+			reverse=True,
 		)
 		self._unigram_dirty = False
 
@@ -189,7 +189,7 @@ class KneserNeyModel:
 				sorted_preds = sorted(
 					self._trigrams[key].items(),
 					key=lambda x: x[1],
-					reverse=True
+					reverse=True,
 				)
 				predictions = [p[0] for p in sorted_preds[:max_predictions]]
 
@@ -200,7 +200,7 @@ class KneserNeyModel:
 				sorted_preds = sorted(
 					self._bigrams[last_word].items(),
 					key=lambda x: x[1],
-					reverse=True
+					reverse=True,
 				)
 				bigram_preds = [p[0] for p in sorted_preds[:max_predictions]]
 				for p in bigram_preds:
@@ -223,7 +223,7 @@ class KneserNeyModel:
 			self._unigram_candidates = sorted(
 				self._continuation_counts.items(),
 				key=lambda x: x[1],
-				reverse=True
+				reverse=True,
 			)
 			self._unigram_dirty = False
 
@@ -244,7 +244,7 @@ class KneserNeyModel:
 
 		# Unigram candidates: top words by continuation probability
 		# These provide backoff for words not seen in the current context
-		for word, _ in self._unigram_candidates[:max_predictions * 3]:
+		for word, _ in self._unigram_candidates[: max_predictions * 3]:
 			candidates.add(word)
 
 		if not candidates:
@@ -479,43 +479,45 @@ CLAUSE_ENDING_PUNCT = frozenset(",;:")
 # of these, word prediction is automatically disabled to avoid
 # interfering with command-line input. This list covers built-in
 # Windows terminals, popular third-party terminal emulators, and WSL.
-TERMINAL_APP_NAMES = frozenset([
-	# Built-in Windows terminals
-	"windowsterminal",  # Windows Terminal
-	"cmd",              # Command Prompt
-	"powershell",       # Windows PowerShell
-	"pwsh",             # PowerShell Core
-	"conhost",          # Console Host
-	# Third-party terminal emulators
-	"cmder",
-	"conemu",
-	"conemu64",
-	"mintty",           # Git Bash
-	"putty",
-	"kitty",
-	"terminus",
-	"hyper",
-	"alacritty",
-	"wezterm",
-	"wezterm-gui",
-	"tabby",
-	"fluent",
-	# WSL
-	"wsl",
-	"bash",
-	# Modern terminals
-	"ghostty",
-	"rio",
-	"waveterm",
-	"contour",
-	"cool-retro-term",
-	# Remote/professional terminals
-	"mobaxterm",
-	"securecrt",
-	"ttermpro",
-	"mremoteng",
-	"royalts",
-])
+TERMINAL_APP_NAMES = frozenset(
+	[
+		# Built-in Windows terminals
+		"windowsterminal",  # Windows Terminal
+		"cmd",  # Command Prompt
+		"powershell",  # Windows PowerShell
+		"pwsh",  # PowerShell Core
+		"conhost",  # Console Host
+		# Third-party terminal emulators
+		"cmder",
+		"conemu",
+		"conemu64",
+		"mintty",  # Git Bash
+		"putty",
+		"kitty",
+		"terminus",
+		"hyper",
+		"alacritty",
+		"wezterm",
+		"wezterm-gui",
+		"tabby",
+		"fluent",
+		# WSL
+		"wsl",
+		"bash",
+		# Modern terminals
+		"ghostty",
+		"rio",
+		"waveterm",
+		"contour",
+		"cool-retro-term",
+		# Remote/professional terminals
+		"mobaxterm",
+		"securecrt",
+		"ttermpro",
+		"mremoteng",
+		"royalts",
+	],
+)
 
 
 class SettingsPanel(gui.settingsDialogs.SettingsPanel):
@@ -552,8 +554,17 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		sizer.Add(self.enabledCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Number of predictions
-		sizer.Add(wx.StaticText(self, label="Number of predictions (1-10):"), border=10, flag=wx.TOP | wx.BOTTOM)
-		self.predictionsSpinner = wx.SpinCtrl(self, min=1, max=10, value=str(self._to_int(settings.get("maxPredictions", 5))))
+		sizer.Add(
+			wx.StaticText(self, label="Number of predictions (1-10):"),
+			border=10,
+			flag=wx.TOP | wx.BOTTOM,
+		)
+		self.predictionsSpinner = wx.SpinCtrl(
+			self,
+			min=1,
+			max=10,
+			value=str(self._to_int(settings.get("maxPredictions", 5))),
+		)
 		sizer.Add(self.predictionsSpinner, border=10, flag=wx.BOTTOM)
 
 		# Beep before predictions
@@ -567,7 +578,10 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		sizer.Add(self.learningCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Kneser-Ney smoothing
-		self.smoothingCheckbox = wx.CheckBox(self, label="Use Kneser-Ney smoothing (better predictions, same speed)")
+		self.smoothingCheckbox = wx.CheckBox(
+			self,
+			label="Use Kneser-Ney smoothing (better predictions, same speed)",
+		)
 		self.smoothingCheckbox.SetValue(self._to_bool(settings.get("useSmoothing", True)))
 		sizer.Add(self.smoothingCheckbox, border=10, flag=wx.BOTTOM)
 
@@ -577,8 +591,19 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		sizer.Add(self.terminalCheckbox, border=10, flag=wx.BOTTOM)
 
 		# Custom app exclusion list
-		sizer.Add(wx.StaticText(self, label="Disable prediction in these applications:"), border=10, flag=wx.TOP | wx.BOTTOM)
-		sizer.Add(wx.StaticText(self, label="Enter app names separated by commas (e.g. vipmud, mushclient). Names are case-insensitive."), border=5, flag=wx.BOTTOM)
+		sizer.Add(
+			wx.StaticText(self, label="Disable prediction in these applications:"),
+			border=10,
+			flag=wx.TOP | wx.BOTTOM,
+		)
+		sizer.Add(
+			wx.StaticText(
+				self,
+				label="Enter app names separated by commas (e.g. vipmud, mushclient). Names are case-insensitive.",
+			),
+			border=5,
+			flag=wx.BOTTOM,
+		)
 		self.disabledAppsText = wx.TextCtrl(
 			self,
 			value=str(settings.get("disabledApps", "")),
@@ -593,7 +618,6 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		if key_code in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
 			# Insert a newline at the cursor position
 			text_ctrl = event.GetEventObject()
-			cursor_pos = text_ctrl.GetInsertionPoint()
 			text_ctrl.WriteText("\n")
 			# Don't skip the event — we handled it
 			return
@@ -618,10 +642,13 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._beep_enabled = self._to_bool(settings.get("beepBeforePredictions", True))
 			SettingsPanel._plugin._learning_enabled = self._to_bool(settings.get("learningEnabled", True))
 			SettingsPanel._plugin._model.set_smoothing(self._to_bool(settings.get("useSmoothing", True)))
-			SettingsPanel._plugin._disable_in_terminals = self._to_bool(settings.get("disableInTerminals", True))
-			SettingsPanel._plugin._disabled_app_names = SettingsPanel._plugin._parse_disabled_apps(
-				settings.get("disabledApps", "")
+			SettingsPanel._plugin._disable_in_terminals = self._to_bool(
+				settings.get("disableInTerminals", True),
 			)
+			SettingsPanel._plugin._disabled_app_names = SettingsPanel._plugin._parse_disabled_apps(
+				settings.get("disabledApps", ""),
+			)
+
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin that provides proactive word prediction for NVDA users."""
@@ -649,6 +676,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if CONFIG_KEY not in config.conf:
 			config.conf[CONFIG_KEY] = DEFAULT_CONFIG.copy()
 		settings = config.conf[CONFIG_KEY]
+
 		# Convert config values to proper types (NVDA config stores as strings)
 		def to_bool(val, default=True):
 			if isinstance(val, bool):
@@ -673,11 +701,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._learning_enabled = to_bool(settings.get("learningEnabled", True))
 		self._disable_in_terminals = to_bool(settings.get("disableInTerminals", True))
 		self._disabled_app_names = self._parse_disabled_apps(
-			settings.get("disabledApps", "")
+			settings.get("disabledApps", ""),
 		)
 		self._terminal_cache = {}  # Cache for terminal/disabled app detection
 		self._model = KneserNeyModel(
-			use_smoothing=to_bool(settings.get("useSmoothing", True))
+			use_smoothing=to_bool(settings.get("useSmoothing", True)),
 		)
 		self._save_lock = threading.Lock()
 		self._dirty = False  # True when n-grams have been modified
@@ -706,12 +734,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if not obj:
 				return False
 			from controlTypes import Role
+
 			if obj.role == Role.EDITABLETEXT:
 				return True
 			# Also check the tree interceptor (browse mode documents like
 			# web pages and emails where you can type in text areas)
 			ti = obj.treeInterceptor
-			if ti and hasattr(ti, 'role') and ti.role == Role.EDITABLETEXT:
+			if ti and hasattr(ti, "role") and ti.role == Role.EDITABLETEXT:
 				return True
 			return False
 		except Exception:
@@ -737,6 +766,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return False
 			# Check NVDA's own Terminal classification first
 			from NVDAObjects.behaviors import Terminal
+
 			if isinstance(obj, Terminal):
 				return True
 			# Check app name against known terminal list
@@ -819,7 +849,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					data = json.load(f)
 				self._model.load(
 					data.get("bigrams", {}),
-					data.get("trigrams", {})
+					data.get("trigrams", {}),
 				)
 				return
 		except Exception:
@@ -831,7 +861,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				data = json.load(f)
 			self._model.load(
 				data.get("bigrams", {}),
-				data.get("trigrams", {})
+				data.get("trigrams", {}),
 			)
 		except Exception:
 			self._model.load({}, {})
@@ -862,7 +892,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		when smoothing is enabled, or frequency-based ranking otherwise.
 		"""
 		return self._model.predict_partial(
-			partial, self._word_buffer, self._max_predictions
+			partial,
+			self._word_buffer,
+			self._max_predictions,
 		)
 
 	def _beep(self):
@@ -958,7 +990,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		# For partial predictions, only type the remaining characters
 		if is_partial and self._current_word:
-			chars_to_type = word[len(self._current_word):]
+			chars_to_type = word[len(self._current_word) :]
 		else:
 			chars_to_type = word
 
@@ -999,7 +1031,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			for char in chars_to_type:
 				if char.isupper():
 					keyboardHandler.KeyboardInputGesture.fromName(
-						f"shift+{char.lower()}"
+						f"shift+{char.lower()}",
 					).send()
 				else:
 					keyboardHandler.KeyboardInputGesture.fromName(char).send()
@@ -1016,7 +1048,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@scriptHandler.script(
 		gesture="kb:NVDA+alt+p",
 		description="Toggle word prediction on or off",
-		category=SCRIPT_CATEGORY
+		category=SCRIPT_CATEGORY,
 	)
 	def script_togglePrediction(self, gesture):
 		self._enabled = not self._enabled
@@ -1031,7 +1063,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@scriptHandler.script(
 		gesture="kb:NVDA+alt+l",
 		description="Save learned word prediction data to disk",
-		category=SCRIPT_CATEGORY
+		category=SCRIPT_CATEGORY,
 	)
 	def script_saveLearning(self, gesture):
 		self._save_ngrams()
@@ -1040,7 +1072,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@scriptHandler.script(
 		gesture="kb:NVDA+alt+o",
 		description="Request word predictions on demand",
-		category=SCRIPT_CATEGORY
+		category=SCRIPT_CATEGORY,
 	)
 	def script_onDemandPrediction(self, gesture):
 		"""Request predictions manually without waiting for space."""
@@ -1083,8 +1115,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+1",
-	description="Accept word prediction 1",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 1",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction1(self, gesture):
 		if self._enabled and (self._predictions or self._partial_predictions):
@@ -1095,13 +1127,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+2",
-	description="Accept word prediction 2",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 2",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction2(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 1 or len(self._partial_predictions) > 1
-		):
+		if self._enabled and (len(self._predictions) > 1 or len(self._partial_predictions) > 1):
 			if self._partial_predictions:
 				self._accept_prediction(1, is_partial=True)
 			else:
@@ -1109,13 +1139,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+3",
-	description="Accept word prediction 3",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 3",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction3(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 2 or len(self._partial_predictions) > 2
-		):
+		if self._enabled and (len(self._predictions) > 2 or len(self._partial_predictions) > 2):
 			if self._partial_predictions:
 				self._accept_prediction(2, is_partial=True)
 			else:
@@ -1123,13 +1151,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+4",
-	description="Accept word prediction 4",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 4",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction4(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 3 or len(self._partial_predictions) > 3
-		):
+		if self._enabled and (len(self._predictions) > 3 or len(self._partial_predictions) > 3):
 			if self._partial_predictions:
 				self._accept_prediction(3, is_partial=True)
 			else:
@@ -1137,13 +1163,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+5",
-	description="Accept word prediction 5",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 5",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction5(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 4 or len(self._partial_predictions) > 4
-		):
+		if self._enabled and (len(self._predictions) > 4 or len(self._partial_predictions) > 4):
 			if self._partial_predictions:
 				self._accept_prediction(4, is_partial=True)
 			else:
@@ -1151,13 +1175,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+6",
-	description="Accept word prediction 6",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 6",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction6(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 5 or len(self._partial_predictions) > 5
-		):
+		if self._enabled and (len(self._predictions) > 5 or len(self._partial_predictions) > 5):
 			if self._partial_predictions:
 				self._accept_prediction(5, is_partial=True)
 			else:
@@ -1165,13 +1187,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+7",
-	description="Accept word prediction 7",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 7",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction7(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 6 or len(self._partial_predictions) > 6
-		):
+		if self._enabled and (len(self._predictions) > 6 or len(self._partial_predictions) > 6):
 			if self._partial_predictions:
 				self._accept_prediction(6, is_partial=True)
 			else:
@@ -1179,13 +1199,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+8",
-	description="Accept word prediction 8",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 8",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction8(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 7 or len(self._partial_predictions) > 7
-		):
+		if self._enabled and (len(self._predictions) > 7 or len(self._partial_predictions) > 7):
 			if self._partial_predictions:
 				self._accept_prediction(7, is_partial=True)
 			else:
@@ -1193,13 +1211,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+9",
-	description="Accept word prediction 9",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 9",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction9(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 8 or len(self._partial_predictions) > 8
-		):
+		if self._enabled and (len(self._predictions) > 8 or len(self._partial_predictions) > 8):
 			if self._partial_predictions:
 				self._accept_prediction(8, is_partial=True)
 			else:
@@ -1207,13 +1223,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@scriptHandler.script(
 		gesture="kb:NVDA+control+0",
-	description="Accept word prediction 10",
-		category=SCRIPT_CATEGORY
+		description="Accept word prediction 10",
+		category=SCRIPT_CATEGORY,
 	)
 	def script_acceptPrediction10(self, gesture):
-		if self._enabled and (
-			len(self._predictions) > 9 or len(self._partial_predictions) > 9
-		):
+		if self._enabled and (len(self._predictions) > 9 or len(self._partial_predictions) > 9):
 			if self._partial_predictions:
 				self._accept_prediction(9, is_partial=True)
 			else:
@@ -1260,7 +1274,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			):
 				self._chars_since_partial = 0
 				self._partial_predictions = self._get_partial_predictions(
-					self._current_word
+					self._current_word,
 				)
 				# Don't auto-announce partials to avoid being too chatty
 				# User can press NVDA+Alt+O to hear them on demand
