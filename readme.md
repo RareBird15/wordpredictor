@@ -58,7 +58,15 @@ All key bindings can be remapped in NVDA's Input Gestures dialog under the "Word
 
 ## How It Works
 
-The add-on uses n-gram language modeling with Kneser-Ney smoothing:
+The add-on uses two prediction engines:
+
+**N-gram model (default):** Uses bigram and trigram analysis with Kneser-Ney smoothing. Fast, lightweight, and learns from your writing in real time. No external dependencies required.
+
+**LSTM neural network (optional):** A small language model trained on 116 Project Gutenberg books (20,000-word vocabulary). Provides context-aware predictions that understand longer-range patterns. Toggle in Settings > Word Predictor. Requires onnxruntime (bundled DLLs included, or install via `pip install onnxruntime`).
+
+Both engines work together — the n-gram model handles predictions by default, and you can switch to the LSTM for more contextually aware suggestions.
+
+### N-gram Model Details
 
 - **Bigrams:** Tracks which words commonly follow other words (e.g., "the" -> "system")
 - **Trigrams:** Tracks which words commonly follow two-word combinations (e.g., "I am" -> "not")

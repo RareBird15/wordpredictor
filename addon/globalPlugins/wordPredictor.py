@@ -16,6 +16,9 @@
 # typing. Typing is now deferred 100ms so modifier keys (NVDA, Ctrl)
 # are physically released before the predicted word is sent,
 # preventing Ctrl+letter shortcuts from firing.
+# v1.6.0: Adds optional LSTM neural network predictor trained on
+# 116 Project Gutenberg books. The LSTM model provides context-aware
+# predictions that complement the n-gram model. Toggle in Settings.
 
 import globalPluginHandler
 import scriptHandler
@@ -29,6 +32,18 @@ import gui
 import gui.settingsDialogs
 import wx
 import api
+
+# Try to import the ONNX LSTM predictor
+try:
+    import sys, os
+    _addon_root = os.path.dirname(os.path.dirname(__file__))
+    if _addon_root not in sys.path:
+        sys.path.insert(0, _addon_root)
+    import onnx_predictor
+    OnnxLstmPredictor = onnx_predictor.OnnxLstmPredictor
+    _ONNX_AVAILABLE = True
+except Exception:
+    _ONNX_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -459,6 +474,7 @@ DEFAULT_CONFIG = {
 	"disableInTerminals": True,
 	"disabledApps": "",
 	"useSmoothing": True,
+	"useLstm": False,
 }
 
 # Script category for NVDA Input Gestures dialog
@@ -585,6 +601,15 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		self.smoothingCheckbox.SetValue(self._to_bool(settings.get("useSmoothing", True)))
 		sizer.Add(self.smoothingCheckbox, border=10, flag=wx.BOTTOM)
 
+		# LSTM neural network predictor
+		if _ONNX_AVAILABLE:
+			self.lstmCheckbox = wx.CheckBox(
+				self,
+				label="Use LSTM neural network predictor (experimental, requires onnxruntime)",
+			)
+			self.lstmCheckbox.SetValue(self._to_bool(settings.get("useLstm", False)))
+			sizer.Add(self.lstmCheckbox, border=10, flag=wx.BOTTOM)
+
 		# Disable in terminals
 		self.terminalCheckbox = wx.CheckBox(self, label="Disable in terminal applications")
 		self.terminalCheckbox.SetValue(self._to_bool(settings.get("disableInTerminals", True)))
@@ -632,6 +657,8 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
 		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
 		settings["useSmoothing"] = self.smoothingCheckbox.IsChecked()
+		if _ONNX_AVAILABLE:
+			settings["useLstm"] = self.lstmCheckbox.IsChecked()
 		settings["disableInTerminals"] = self.terminalCheckbox.IsChecked()
 		settings["disabledApps"] = self.disabledAppsText.GetValue()
 
@@ -642,6 +669,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._beep_enabled = self._to_bool(settings.get("beepBeforePredictions", True))
 			SettingsPanel._plugin._learning_enabled = self._to_bool(settings.get("learningEnabled", True))
 			SettingsPanel._plugin._model.set_smoothing(self._to_bool(settings.get("useSmoothing", True)))
+			SettingsPanel._plugin._use_lstm = self._to_bool(settings.get("useLstm", False))
 			SettingsPanel._plugin._disable_in_terminals = self._to_bool(
 				settings.get("disableInTerminals", True),
 			)
@@ -707,6 +735,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._model = KneserNeyModel(
 			use_smoothing=to_bool(settings.get("useSmoothing", True)),
 		)
+		self._use_lstm = to_bool(settings.get("useLstm", False))
+		self._lstm_predictor = None
+		if _ONNX_AVAILABLE:
+			# Paths relative to the add-on directory
+			addon_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+			model_path = os.path.join(addon_dir, "data", "wordpredictor_slm.onnx")
+			vocab_path = os.path.join(addon_dir, "data", "wordpredictor_slm_vocab.json")
+			if os.path.exists(model_path) and os.path.exists(vocab_path):
+				try:
+					self._lstm_predictor = OnnxLstmPredictor(model_path, vocab_path)
+				except Exception:
+					self._lstm_predictor = None
 		self._save_lock = threading.Lock()
 		self._dirty = False  # True when n-grams have been modified
 		self._chars_since_partial = 0  # Characters typed since last partial prediction
@@ -883,6 +923,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _get_predictions(self):
 		"""Get word predictions based on the current word buffer."""
+		# Try LSTM first if enabled and available
+		if self._use_lstm and self._lstm_predictor and self._lstm_predictor.available:
+			lstm_preds = self._lstm_predictor.predict(
+				self._word_buffer, self._max_predictions
+			)
+			if lstm_preds:
+				return [w for w, _ in lstm_preds]
+		# Fall back to n-gram model
 		return self._model.predict(self._word_buffer, self._max_predictions)
 
 	def _get_partial_predictions(self, partial):

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.0
+
+- Optional LSTM neural network predictor trained on 116 Project Gutenberg books (20,000-word vocabulary, 21MB ONNX model). The LSTM provides context-aware predictions that complement the n-gram model. Toggle in Settings > Word Predictor.
+- Bundled onnxruntime DLLs (v1.20.1) in lib/ for ctypes fallback when the Python onnxruntime package is not installed.
+- The n-gram model remains the default. The LSTM is opt-in.
+
 ## v1.5.0
 
 - Adopted the NVDA add-on template for standardized builds and CI/CD.
