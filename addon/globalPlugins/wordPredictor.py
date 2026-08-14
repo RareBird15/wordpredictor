@@ -955,22 +955,22 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not self._enabled or not self._predictions:
 			return
 
-		# Format: "Predictions: 1: word, 2: word, 3: word"
+		# Format: "Predictions: 1. word. 2. word. 3. word."
 		parts = []
 		for i, word in enumerate(self._predictions):
-			parts.append(f"{i + 1}: {word}")
-		ui.message("Predictions: " + ", ".join(parts))
+			parts.append(f"{i + 1}. {word}")
+		ui.message("Predictions: " + ". ".join(parts) + ".")
 
 	def _announce_partial_predictions(self):
 		"""Announce partial-word predictions through NVDA speech."""
 		if not self._enabled or not self._partial_predictions:
 			return
 
-		# Format: "Suggestions: 1: word, 2: word"
+		# Format: "Suggestions: 1. word. 2. word."
 		parts = []
 		for i, word in enumerate(self._partial_predictions):
-			parts.append(f"{i + 1}: {word}")
-		ui.message("Suggestions: " + ", ".join(parts))
+			parts.append(f"{i + 1}. {word}")
+		ui.message("Suggestions: " + ". ".join(parts) + ".")
 
 	def _learn_from_word(self, word):
 		"""Update n-gram counts with the new word."""
