@@ -23,30 +23,34 @@
 # extended context window to 6 words, blends LSTM with n-gram instead of
 # replacing it, and fixed a padding bug.
 
-import globalPluginHandler
-import scriptHandler
-import ui
-import tones
-import os
 import json
-import config
+import os
 import threading
+
+import api
+import config
+import globalPluginHandler
 import gui
 import gui.settingsDialogs
+import scriptHandler
+import tones
+import ui
 import wx
-import api
 
 # Try to import the ONNX LSTM predictor
 try:
-    import sys, os
-    _addon_root = os.path.dirname(os.path.dirname(__file__))
-    if _addon_root not in sys.path:
-        sys.path.insert(0, _addon_root)
-    import onnx_predictor
-    OnnxLstmPredictor = onnx_predictor.OnnxLstmPredictor
-    _ONNX_AVAILABLE = True
+	import os
+	import sys
+
+	_addon_root = os.path.dirname(os.path.dirname(__file__))
+	if _addon_root not in sys.path:
+		sys.path.insert(0, _addon_root)
+	import onnx_predictor
+
+	OnnxLstmPredictor = onnx_predictor.OnnxLstmPredictor
+	_ONNX_AVAILABLE = True
 except Exception:
-    _ONNX_AVAILABLE = False
+	_ONNX_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
@@ -957,9 +961,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return ngram_preds
 
 		# Get LSTM predictions with probabilities
-		lstm_preds = self._lstm_predictor.predict(
-			self._word_buffer, self._max_predictions
-		)
+		lstm_preds = self._lstm_predictor.predict(self._word_buffer, self._max_predictions)
 
 		if not lstm_preds:
 			return ngram_preds
