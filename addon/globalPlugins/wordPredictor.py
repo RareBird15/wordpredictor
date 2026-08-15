@@ -19,6 +19,9 @@
 # v1.6.0: Adds optional LSTM neural network predictor trained on
 # 116 Project Gutenberg books. The LSTM model provides context-aware
 # predictions that complement the n-gram model. Toggle in Settings.
+# v1.7.0: Retrained LSTM on 20M tokens of modern dialogue (OpenSubtitles),
+# extended context window to 6 words, blends LSTM with n-gram instead of
+# replacing it, and fixed a padding bug.
 
 import globalPluginHandler
 import scriptHandler
@@ -720,7 +723,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				return default
 
 		self._enabled = to_bool(settings.get("enabled", True))
-		self._word_buffer = []  # Last 3 completed words
+		self._word_buffer = []  # Last 8 completed words (supports LSTM context window)
 		self._current_word = ""  # Word currently being typed
 		self._predictions = []  # Current list of predictions
 		self._partial_predictions = []  # Predictions for partial word
@@ -740,8 +743,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if _ONNX_AVAILABLE:
 			# Paths relative to the add-on directory
 			addon_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-			model_path = os.path.join(addon_dir, "data", "wordpredictor_slm.onnx")
-			vocab_path = os.path.join(addon_dir, "data", "wordpredictor_slm_vocab.json")
+			model_path = os.path.join(addon_dir, "data", "wordpredictor_slm_v2.onnx")
+			vocab_path = os.path.join(addon_dir, "data", "wordpredictor_slm_v2_vocab.json")
 			if os.path.exists(model_path) and os.path.exists(vocab_path):
 				try:
 					self._lstm_predictor = OnnxLstmPredictor(model_path, vocab_path)
@@ -922,16 +925,42 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			pass
 
 	def _get_predictions(self):
-		"""Get word predictions based on the current word buffer."""
-		# Try LSTM first if enabled and available
-		if self._use_lstm and self._lstm_predictor and self._lstm_predictor.available:
-			lstm_preds = self._lstm_predictor.predict(
-				self._word_buffer, self._max_predictions
-			)
-			if lstm_preds:
-				return [w for w, _ in lstm_preds]
-		# Fall back to n-gram model
-		return self._model.predict(self._word_buffer, self._max_predictions)
+		"""Get word predictions based on the current word buffer.
+
+		When the LSTM is enabled and available, blends LSTM predictions
+		(context-aware, from the neural model) with n-gram predictions
+		(personalized, learned from the user's writing). The LSTM
+		provides the first predictions, then n-gram fills remaining
+		slots with words the LSTM didn't already suggest.
+		"""
+		# Get n-gram predictions (always available)
+		ngram_preds = self._model.predict(self._word_buffer, self._max_predictions)
+
+		# If LSTM is not enabled/available, just return n-gram
+		if not (self._use_lstm and self._lstm_predictor and self._lstm_predictor.available):
+			return ngram_preds
+
+		# Get LSTM predictions with probabilities
+		lstm_preds = self._lstm_predictor.predict(
+			self._word_buffer, self._max_predictions
+		)
+
+		if not lstm_preds:
+			return ngram_preds
+
+		# Blend: LSTM first, then n-gram fills gaps
+		blended = []
+		seen = set()
+		for word, _ in lstm_preds:
+			if word not in seen:
+				blended.append(word)
+				seen.add(word)
+		for word in ngram_preds:
+			if word not in seen and len(blended) < self._max_predictions:
+				blended.append(word)
+				seen.add(word)
+
+		return blended[: self._max_predictions]
 
 	def _get_partial_predictions(self, partial):
 		"""Get predictions for a partially typed word.
@@ -984,9 +1013,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# incrementally.
 		self._model.learn(word, self._word_buffer)
 
-		# Add word to buffer (keep last 3)
+		# Add word to buffer (keep last 8)
 		self._word_buffer.append(word)
-		if len(self._word_buffer) > 3:
+		if len(self._word_buffer) > 8:
 			self._word_buffer.pop(0)
 
 		# Mark as needing save
@@ -1046,8 +1075,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if need_leading_space and not is_partial:
 			chars_to_type = " " + chars_to_type
 
-		word_to_learn = word.lower()
-
 		# Clear state immediately so duplicate accepts don't fire
 		self._current_word = ""
 		self._predictions = []
@@ -1086,8 +1113,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Add a space after the word
 			keyboardHandler.KeyboardInputGesture.fromName("space").send()
 
-			# Learn from the accepted word
-			self._learn_from_word(word_to_learn)
+			# The space keystroke flows through event_typedCharacter, which
+			# learns the word and adds it to the buffer. Do NOT call
+			# _learn_from_word here — that would add the word twice and
+			# corrupt the context buffer (the bug where predictions after
+			# accepting a word only used that single word).
 			# Announce what was inserted
 			ui.message(f"Inserted: {word}")
 

@@ -207,6 +207,10 @@ def main():
     parser = argparse.ArgumentParser(description="Train SLM for WordPredictor")
     parser.add_argument('--corpus-dir', default='data/corpus',
                         help='Directory with .txt files')
+    parser.add_argument('--token-file', default=None,
+                        help='Pre-tokenized space-separated text file (alternative to corpus-dir)')
+    parser.add_argument('--max-tokens', type=int, default=None,
+                        help='Cap the number of tokens used (for CPU training time control)')
     parser.add_argument('--epochs', type=int, default=5,
                         help='Number of training epochs')
     parser.add_argument('--embed-dim', type=int, default=128,
@@ -237,25 +241,43 @@ def main():
     print(f"Using device: {device}")
 
     # ── Load corpus ────────────────────────────────────────────
-    corpus_dir = Path(args.corpus_dir)
-    if not corpus_dir.exists():
-        print(f"Corpus directory {corpus_dir} not found. Downloading sample texts...")
-        corpus_dir.mkdir(parents=True, exist_ok=True)
-        download_sample_corpus(corpus_dir)
-
-    print("Loading corpus...")
     all_tokens = []
-    txt_files = sorted(corpus_dir.glob('*.txt'))
-    if not txt_files:
-        print("No .txt files found. Downloading sample texts...")
-        download_sample_corpus(corpus_dir)
-        txt_files = sorted(corpus_dir.glob('*.txt'))
 
-    for fp in tqdm(txt_files, desc="Loading texts"):
-        text = load_gutenberg(str(fp))
-        if text:
-            tokens = tokenize(text)
-            all_tokens.extend(tokens)
+    if args.token_file:
+        # Load pre-tokenized space-separated text
+        token_path = Path(args.token_file)
+        if not token_path.exists():
+            print(f"Token file {token_path} not found.")
+            return
+        print(f"Loading token file {token_path}...")
+        with open(token_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        all_tokens = text.split()
+        print(f"Loaded {len(all_tokens):,} tokens from token file")
+    else:
+        corpus_dir = Path(args.corpus_dir)
+        if not corpus_dir.exists():
+            print(f"Corpus directory {corpus_dir} not found. Downloading sample texts...")
+            corpus_dir.mkdir(parents=True, exist_ok=True)
+            download_sample_corpus(corpus_dir)
+
+        print("Loading corpus...")
+        txt_files = sorted(corpus_dir.glob('*.txt'))
+        if not txt_files:
+            print("No .txt files found. Downloading sample texts...")
+            download_sample_corpus(corpus_dir)
+            txt_files = sorted(corpus_dir.glob('*.txt'))
+
+        for fp in tqdm(txt_files, desc="Loading texts"):
+            text = load_gutenberg(str(fp))
+            if text:
+                tokens = tokenize(text)
+                all_tokens.extend(tokens)
+
+    # Cap tokens if requested (for CPU training time control)
+    if args.max_tokens and len(all_tokens) > args.max_tokens:
+        print(f"Capping tokens from {len(all_tokens):,} to {args.max_tokens:,}")
+        all_tokens = all_tokens[:args.max_tokens]
 
     print(f"Total tokens: {len(all_tokens):,}")
 

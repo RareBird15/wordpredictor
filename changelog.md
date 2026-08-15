@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.7.0
+
+- Retrained the LSTM predictor on 20 million tokens of modern movie and TV dialogue (OpenSubtitles) instead of 19th-century literature. Predictions are now much more natural and conversational.
+- Extended the LSTM context window from 4 to 6 words for better use of sentence context.
+- The LSTM now blends with the n-gram model instead of replacing it. LSTM provides context-aware suggestions first, then n-gram fills remaining slots with words learned from the user's own writing.
+- Fixed a padding bug where short contexts were padded with the wrong token, degrading prediction quality.
+- Fixed a context-corruption bug where accepting a prediction added the word to the context buffer twice, causing the next prediction to ignore all preceding words and only use the single accepted word.
+
 ## v1.6.0
 
 - Optional LSTM neural network predictor trained on 116 Project Gutenberg books (20,000-word vocabulary, 21MB ONNX model). The LSTM provides context-aware predictions that complement the n-gram model. Toggle in Settings > Word Predictor.

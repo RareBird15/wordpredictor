@@ -13,3 +13,9 @@ manifest.ini
 .venv/
 data/corpus/
 data/ngrams.json.bak
+/data/
+training_env/
+train_v2.log
+run_train_v2.sh
+INTEGRATION_PLAN.md
+RETRAINING_STATUS.md

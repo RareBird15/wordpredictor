@@ -299,11 +299,11 @@ class OnnxLstmPredictor:
 
         # Pad/truncate to context_len
         words = context_words[-self.context_len:] if len(context_words) > self.context_len else context_words
-        while len(words) < self.context_len:
-            words.insert(0, '')
 
-        # Convert to token IDs
-        input_ids = [self.word2idx.get(w, 1) for w in words]  # 1 = <unk>
+        # Convert to token IDs. Pad with 0 (<pad>), unknown words map to 1 (<unk>).
+        input_ids = [self.word2idx.get(w, 1) for w in words]
+        while len(input_ids) < self.context_len:
+            input_ids.insert(0, 0)  # 0 = <pad>
 
         if self._use_ctypes:
             return self._predict_ctypes(input_ids, top_k)

@@ -62,9 +62,9 @@ The add-on uses two prediction engines:
 
 **N-gram model (default):** Uses bigram and trigram analysis with Kneser-Ney smoothing. Fast, lightweight, and learns from your writing in real time. No external dependencies required.
 
-**LSTM neural network (optional):** A small language model trained on 116 Project Gutenberg books (20,000-word vocabulary). Provides context-aware predictions that understand longer-range patterns. Toggle in Settings > Word Predictor. Requires onnxruntime (bundled DLLs included, or install via `pip install onnxruntime`).
+**LSTM neural network (optional):** A small language model trained on 20 million tokens of modern movie and TV dialogue (OpenSubtitles), with a 6-word context window. Provides context-aware predictions that understand natural conversational patterns. Toggle in Settings > Word Predictor. Requires onnxruntime (bundled DLLs included, or install via `pip install onnxruntime`).
 
-Both engines work together — the n-gram model handles predictions by default, and you can switch to the LSTM for more contextually aware suggestions.
+Both engines work together — the LSTM provides context-aware suggestions first, then the n-gram model fills remaining slots with words learned from your own writing.
 
 ### N-gram Model Details
 
