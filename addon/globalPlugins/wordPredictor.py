@@ -473,6 +473,7 @@ DEFAULT_CONFIG = {
 	"enabled": True,
 	"maxPredictions": 5,
 	"beepBeforePredictions": True,
+	"announceAutomaticPredictions": True,
 	"learningEnabled": True,
 	"disableInTerminals": True,
 	"disabledApps": "",
@@ -591,6 +592,16 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		self.beepCheckbox.SetValue(self._to_bool(settings.get("beepBeforePredictions", True)))
 		sizer.Add(self.beepCheckbox, border=10, flag=wx.BOTTOM)
 
+		# Announce automatic predictions
+		self.announceAutomaticCheckbox = wx.CheckBox(
+			self,
+			label="Announce automatic predictions (beep and speech after each word)",
+		)
+		self.announceAutomaticCheckbox.SetValue(
+			self._to_bool(settings.get("announceAutomaticPredictions", True)),
+		)
+		sizer.Add(self.announceAutomaticCheckbox, border=10, flag=wx.BOTTOM)
+
 		# Learning enabled
 		self.learningCheckbox = wx.CheckBox(self, label="Learn from my writing")
 		self.learningCheckbox.SetValue(self._to_bool(settings.get("learningEnabled", True)))
@@ -658,6 +669,7 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 		settings["enabled"] = self.enabledCheckbox.IsChecked()
 		settings["maxPredictions"] = int(self.predictionsSpinner.GetValue())
 		settings["beepBeforePredictions"] = self.beepCheckbox.IsChecked()
+		settings["announceAutomaticPredictions"] = self.announceAutomaticCheckbox.IsChecked()
 		settings["learningEnabled"] = self.learningCheckbox.IsChecked()
 		settings["useSmoothing"] = self.smoothingCheckbox.IsChecked()
 		if _ONNX_AVAILABLE:
@@ -670,6 +682,9 @@ class SettingsPanel(gui.settingsDialogs.SettingsPanel):
 			SettingsPanel._plugin._enabled = self._to_bool(settings.get("enabled", True))
 			SettingsPanel._plugin._max_predictions = self._to_int(settings.get("maxPredictions", 5))
 			SettingsPanel._plugin._beep_enabled = self._to_bool(settings.get("beepBeforePredictions", True))
+			SettingsPanel._plugin._announce_automatic = self._to_bool(
+				settings.get("announceAutomaticPredictions", True),
+			)
 			SettingsPanel._plugin._learning_enabled = self._to_bool(settings.get("learningEnabled", True))
 			SettingsPanel._plugin._model.set_smoothing(self._to_bool(settings.get("useSmoothing", True)))
 			SettingsPanel._plugin._use_lstm = self._to_bool(settings.get("useLstm", False))
@@ -729,6 +744,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self._partial_predictions = []  # Predictions for partial word
 		self._max_predictions = to_int(settings.get("maxPredictions", 5))
 		self._beep_enabled = to_bool(settings.get("beepBeforePredictions", True))
+		self._announce_automatic = to_bool(settings.get("announceAutomaticPredictions", True))
 		self._learning_enabled = to_bool(settings.get("learningEnabled", True))
 		self._disable_in_terminals = to_bool(settings.get("disableInTerminals", True))
 		self._disabled_app_names = self._parse_disabled_apps(
@@ -1369,7 +1385,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Get predictions for the next word
 				self._predictions = self._get_predictions()
 
-				if self._predictions:
+				if self._predictions and self._announce_automatic:
 					# Short beep to alert that predictions are available
 					self._beep()
 					# Announce predictions
@@ -1387,7 +1403,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# (period, comma, etc. also end a word)
 				self._predictions = self._get_predictions()
 
-				if self._predictions:
+				if self._predictions and self._announce_automatic:
 					self._beep()
 					self._announce_predictions()
 			else:

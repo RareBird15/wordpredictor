@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.7.1
+
+- Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them.
+
 ## v1.7.0
 
 - Retrained the LSTM predictor on 20 million tokens of modern movie and TV dialogue (OpenSubtitles) instead of 19th-century literature. Predictions are now much more natural and conversational.

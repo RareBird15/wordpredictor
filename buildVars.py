@@ -23,10 +23,10 @@ addon_info = AddonInfo(
 	# Translators: Long description to be shown for this add-on on add-on information from add-on store
 	addon_description=_("""Watches what you type and predicts the next word using n-gram analysis with Kneser-Ney smoothing. Predictions are announced through NVDA's speech engine and can be accepted with NVDA+Control+number keys (1 through 0). Learns from your writing over time. Includes partial-word prediction and terminal auto-detection and a custom app exclusion list and a settings panel."""),
 	# version
-	addon_version="1.7.0",
+	addon_version="1.7.1",
 	# Brief changelog for this version
 	# Translators: what's new content for the add-on version to be shown in the add-on store
-	addon_changelog=_("""Retrained the LSTM predictor on 20 million tokens of modern movie and TV dialogue (OpenSubtitles) instead of 19th-century literature, for much more natural predictions. Extended the context window from 4 to 6 words. The LSTM now blends with the n-gram model instead of replacing it, combining context-aware suggestions with words learned from your own writing. Fixed a padding bug and a context-corruption bug that were degrading prediction quality."""),
+	addon_changelog=_("""Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them."""),
 	# Author(s)
 	addon_author="Lanie Carmelo-Molinar <lanie@lanie.work>",
 	# URL for the add-on documentation support
