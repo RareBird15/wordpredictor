@@ -2,8 +2,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nvdaaddons\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2026-08-08 15:19+0000\n"
-"PO-Revision-Date: 2026-08-10 00:12\n"
+"POT-Creation-Date: 2026-08-17 01:49+0000\n"
+"PO-Revision-Date: 2026-08-17 01:51\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
 "Language: tr_TR\n"
@@ -33,8 +33,6 @@ msgstr "Yazdıklarınızı izler ve Kneser-Ney yumuşatma yöntemiyle n-gram ana
 #. Brief changelog for this version
 #. Translators: what's new content for the add-on version to be shown in the add-on store
 #: buildVars.py:29
-msgid "Adopted the NVDA add-on template for standardized builds and CI/CD.\n"
-"No functional changes to the add-on behavior."
-msgstr "Standartlaştırılmış yapılar ve CI/CD için NVDA eklenti şablonu benimsendi.\n"
-"Eklenti davranışında işlevsel değişiklik yok."
+msgid "Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them."
+msgstr ""
 
