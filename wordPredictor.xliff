@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en">
-<file id="readme.md" original="https://raw.githubusercontent.com/RareBird15/wordpredictor/370fbde0ce589db932a7051b4d011e72ae49a88a/readme.md">
+<file id="readme.md" original="https://raw.githubusercontent.com/RareBird15/wordpredictor/f56b9be620b73920d09dded44388babb0431f184/readme.md">
 <skeleton>
 # $(ID:f1055a1a-cc57-44e9-be2b-7ef6b0e899fa)
 
@@ -62,7 +62,15 @@ $(ID:251c573c-7513-4aaa-ac2b-3fdcfd7796a0)
 
 ## $(ID:0c3bd8f1-03d3-4aeb-832c-9bc290b07868)
 
-$(ID:fd8868f3-4eee-423c-b53c-9ade1ce3eab7)
+$(ID:65ec3502-12f8-4d75-a079-5d25fb6b3545)
+
+$(ID:61161efd-d381-4848-9263-02642f85639a)
+
+$(ID:5d8c04cd-ecab-4f0b-995e-646edc07d993)
+
+$(ID:53dde900-b38b-4c40-bcee-31daf5460d01)
+
+### $(ID:a2c1f0c3-47b0-457b-a60c-c73a3eb0eba2)
 
 $(ID:076fda4c-5257-45f8-be4c-232d84e67824)
 $(ID:e7562e38-113c-43cd-89a6-b4393dce03d7)
@@ -468,17 +476,50 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 <source>How It Works</source>
 </segment>
 </unit>
-<unit id="fd8868f3-4eee-423c-b53c-9ade1ce3eab7">
+<unit id="65ec3502-12f8-4d75-a079-5d25fb6b3545">
 <notes>
 <note appliesTo="source">line: 62</note>
 </notes>
 <segment>
-<source>The add-on uses n-gram language modeling with Kneser-Ney smoothing:</source>
+<source>The add-on uses two prediction engines:</source>
+</segment>
+</unit>
+<unit id="61161efd-d381-4848-9263-02642f85639a">
+<notes>
+<note appliesTo="source">line: 64</note>
+</notes>
+<segment>
+<source>**N-gram model (default):** Uses bigram and trigram analysis with Kneser-Ney smoothing. Fast, lightweight, and learns from your writing in real time. No external dependencies required.</source>
+</segment>
+</unit>
+<unit id="5d8c04cd-ecab-4f0b-995e-646edc07d993">
+<notes>
+<note appliesTo="source">line: 66</note>
+</notes>
+<segment>
+<source>**LSTM neural network (optional):** A small language model trained on 20 million tokens of modern movie and TV dialogue (OpenSubtitles), with a 6-word context window. Provides context-aware predictions that understand natural conversational patterns. Toggle in Settings &gt; Word Predictor. Requires onnxruntime (bundled DLLs included, or install via `pip install onnxruntime`).</source>
+</segment>
+</unit>
+<unit id="53dde900-b38b-4c40-bcee-31daf5460d01">
+<notes>
+<note appliesTo="source">line: 68</note>
+</notes>
+<segment>
+<source>Both engines work together — the LSTM provides context-aware suggestions first, then the n-gram model fills remaining slots with words learned from your own writing.</source>
+</segment>
+</unit>
+<unit id="a2c1f0c3-47b0-457b-a60c-c73a3eb0eba2">
+<notes>
+<note appliesTo="source">line: 70</note>
+<note appliesTo="source">prefix: ### </note>
+</notes>
+<segment>
+<source>N-gram Model Details</source>
 </segment>
 </unit>
 <unit id="076fda4c-5257-45f8-be4c-232d84e67824">
 <notes>
-<note appliesTo="source">line: 64</note>
+<note appliesTo="source">line: 72</note>
 </notes>
 <segment>
 <source>- **Bigrams:** Tracks which words commonly follow other words (e.g., "the" -&gt; "system")</source>
@@ -486,7 +527,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="e7562e38-113c-43cd-89a6-b4393dce03d7">
 <notes>
-<note appliesTo="source">line: 65</note>
+<note appliesTo="source">line: 73</note>
 </notes>
 <segment>
 <source>- **Trigrams:** Tracks which words commonly follow two-word combinations (e.g., "I am" -&gt; "not")</source>
@@ -494,7 +535,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="e868da59-b171-4a77-a189-2f249947526b">
 <notes>
-<note appliesTo="source">line: 66</note>
+<note appliesTo="source">line: 74</note>
 </notes>
 <segment>
 <source>- **Kneser-Ney smoothing:** Instead of ranking predictions by raw frequency, uses interpolated Kneser-Ney probability. This rewards words that appear in many different contexts (like "the", "is", "and") over words that appear frequently but only in specific phrases (like "York" after "New"). Handles unseen n-grams gracefully by backing off to lower-order n-grams with adjusted probabilities.</source>
@@ -502,7 +543,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="53e3274c-e701-4737-af7b-b8bd92a5cbaf">
 <notes>
-<note appliesTo="source">line: 67</note>
+<note appliesTo="source">line: 75</note>
 </notes>
 <segment>
 <source>- **Three-level interpolation:** Trigram probability is blended with bigram probability, which is blended with unigram continuation probability. This means even words never seen in the exact context still get a probability based on how common they are as continuations.</source>
@@ -510,7 +551,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="cccdb7e9-3f98-40a5-a08d-4895da90e5c4">
 <notes>
-<note appliesTo="source">line: 68</note>
+<note appliesTo="source">line: 76</note>
 </notes>
 <segment>
 <source>- **Partial matching:** When you type part of a word, the add-on searches all n-grams for words that start with what you've typed and ranks them by KN probability</source>
@@ -518,7 +559,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="c47b439b-5df6-4414-954f-bfe28005a0bc">
 <notes>
-<note appliesTo="source">line: 69</note>
+<note appliesTo="source">line: 77</note>
 </notes>
 <segment>
 <source>- **Real-time learning:** Every word you type updates the n-gram counts and derived statistics, so the model adapts to your writing style</source>
@@ -526,7 +567,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="2b97538a-b63c-4869-985e-6cfe2d2a8f47">
 <notes>
-<note appliesTo="source">line: 70</note>
+<note appliesTo="source">line: 78</note>
 </notes>
 <segment>
 <source>- **Persistent storage:** Learning saves to `wordPredictor_learned.json` in your NVDA user config directory</source>
@@ -534,7 +575,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="87482fd9-c89b-40a4-b4e7-7871dc57fd78">
 <notes>
-<note appliesTo="source">line: 71</note>
+<note appliesTo="source">line: 79</note>
 </notes>
 <segment>
 <source>- **Backward compatible:** Existing learned data from v1.1.0 loads without migration. Smoothing can be turned off in settings to restore the original frequency-based behavior.</source>
@@ -542,7 +583,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="65ff22b3-e853-4046-bf7f-c08a8986e6c1">
 <notes>
-<note appliesTo="source">line: 73</note>
+<note appliesTo="source">line: 81</note>
 </notes>
 <segment>
 <source>The n-gram data is stored as a JSON file and loaded at startup. No external Python dependencies are required.</source>
@@ -550,7 +591,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="7f0225ae-3cb3-403d-afe7-3427fa1529bb">
 <notes>
-<note appliesTo="source">line: 75</note>
+<note appliesTo="source">line: 83</note>
 <note appliesTo="source">prefix: ## </note>
 </notes>
 <segment>
@@ -559,7 +600,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="d697a7e8-fff4-4dac-8094-c4d7cddc7cac">
 <notes>
-<note appliesTo="source">line: 77</note>
+<note appliesTo="source">line: 85</note>
 </notes>
 <segment>
 <source>- **NVDA version:** Requires NVDA 2026.1 or later (Python 3.13, 64-bit)</source>
@@ -567,7 +608,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="e4e4cd40-7332-4419-9a90-8ba84aa2fdb3">
 <notes>
-<note appliesTo="source">line: 78</note>
+<note appliesTo="source">line: 86</note>
 </notes>
 <segment>
 <source>- **Architecture:** Global plugin using `event_typedCharacter` for input tracking</source>
@@ -575,7 +616,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="5c763264-e61e-406f-9495-2e19b7eed564">
 <notes>
-<note appliesTo="source">line: 79</note>
+<note appliesTo="source">line: 87</note>
 </notes>
 <segment>
 <source>- **Prediction engine:** Custom n-gram implementation, no NLTK dependency at runtime</source>
@@ -583,7 +624,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="d2b634a8-d5c7-4524-b778-cae0fef26bda">
 <notes>
-<note appliesTo="source">line: 80</note>
+<note appliesTo="source">line: 88</note>
 </notes>
 <segment>
 <source>- **Data file:** ~1.6 MB JSON file with bigram and trigram counts</source>
@@ -591,7 +632,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="902e5f53-0972-4d84-875d-280958babda7">
 <notes>
-<note appliesTo="source">line: 81</note>
+<note appliesTo="source">line: 89</note>
 </notes>
 <segment>
 <source>- **Config:** Settings stored in NVDA's config under the `wordPredictor` key</source>
@@ -599,7 +640,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="6a735e2e-67a3-455a-be71-e11219803191">
 <notes>
-<note appliesTo="source">line: 83</note>
+<note appliesTo="source">line: 91</note>
 <note appliesTo="source">prefix: ## </note>
 </notes>
 <segment>
@@ -608,7 +649,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="46ae0b2e-da1d-409c-bfe1-305d032f14f6">
 <notes>
-<note appliesTo="source">line: 85</note>
+<note appliesTo="source">line: 93</note>
 </notes>
 <segment>
 <source>See [CHANGELOG.md](CHANGELOG.md) for the full version history.</source>
@@ -616,7 +657,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="a7564c07-66ed-488b-845a-bd88ef6bae89">
 <notes>
-<note appliesTo="source">line: 87</note>
+<note appliesTo="source">line: 95</note>
 <note appliesTo="source">prefix: ## </note>
 </notes>
 <segment>
@@ -625,7 +666,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="3d69c1c1-715a-4e62-b6dd-186a2b8a9a20">
 <notes>
-<note appliesTo="source">line: 89</note>
+<note appliesTo="source">line: 97</note>
 </notes>
 <segment>
 <source>GPL v2, same as NVDA.</source>
@@ -633,7 +674,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="b55a41e5-8815-4bda-8802-972912ff712d">
 <notes>
-<note appliesTo="source">line: 91</note>
+<note appliesTo="source">line: 99</note>
 <note appliesTo="source">prefix: ## </note>
 </notes>
 <segment>
@@ -642,7 +683,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="b276575a-8063-471c-b27e-53bc68a42db3">
 <notes>
-<note appliesTo="source">line: 93</note>
+<note appliesTo="source">line: 101</note>
 </notes>
 <segment>
 <source>Lanie Carmelo-Molinar - [lanie.work](https://lanie.work)</source>
@@ -650,7 +691,7 @@ $(ID:a884e8e7-67ab-4bc7-b12d-c77c8940e5c4)
 </unit>
 <unit id="a884e8e7-67ab-4bc7-b12d-c77c8940e5c4">
 <notes>
-<note appliesTo="source">line: 95</note>
+<note appliesTo="source">line: 103</note>
 </notes>
 <segment>
 <source>A blind NVDA user who built this because existing word prediction tools don't work with screen readers.</source>
