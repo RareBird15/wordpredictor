@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: nvdaaddons\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2026-08-17 01:49+0000\n"
-"PO-Revision-Date: 2026-08-17 01:51\n"
+"PO-Revision-Date: 2026-08-18 17:26\n"
 "Last-Translator: \n"
 "Language-Team: Turkish\n"
 "Language: tr_TR\n"
@@ -34,5 +34,5 @@ msgstr "Yazdıklarınızı izler ve Kneser-Ney yumuşatma yöntemiyle n-gram ana
 #. Translators: what's new content for the add-on version to be shown in the add-on store
 #: buildVars.py:29
 msgid "Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them."
-msgstr ""
+msgstr "İsteğe bağlı tahminleri (NVDA+Alt+O) ve numaralı kabul tuşlarını çalışır durumda tutarken otomatik tahminleri susturan bir ayar eklendi. Sürekli bip sesi ve konuşmayı dikkat dağıtıcı bulan ve yalnızca tahminlerde bulunmak isteyen kullanıcılar için kullanışlıdır."
 
