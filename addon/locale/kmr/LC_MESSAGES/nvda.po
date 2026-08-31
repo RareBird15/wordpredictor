@@ -3,17 +3,17 @@ msgstr ""
 "Project-Id-Version: nvdaaddons\n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
 "POT-Creation-Date: 2026-08-17 01:49+0000\n"
-"PO-Revision-Date: 2026-08-31 05:20\n"
+"PO-Revision-Date: 2026-08-28 06:29\n"
 "Last-Translator: \n"
-"Language-Team: Turkish\n"
-"Language: tr_TR\n"
+"Language-Team: Kurmanji (Kurdish)\n"
+"Language: kmr_TR\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Crowdin-Project: nvdaaddons\n"
 "X-Crowdin-Project-ID: 780748\n"
-"X-Crowdin-Language: tr\n"
+"X-Crowdin-Language: kmr\n"
 "X-Crowdin-File: wordPredictor.pot\n"
 "X-Crowdin-File-ID: 649\n"
 
@@ -22,17 +22,17 @@ msgstr ""
 #. to be shown on installation and add-on information found in add-on store
 #: buildVars.py:21
 msgid "Word Predictor"
-msgstr "Kelime Tahmincisi"
+msgstr "Pêşbînkerê Peyvan"
 
 #. Add-on description
 #. Translators: Long description to be shown for this add-on on add-on information from add-on store
 #: buildVars.py:24
 msgid "Watches what you type and predicts the next word using n-gram analysis with Kneser-Ney smoothing. Predictions are announced through NVDA's speech engine and can be accepted with NVDA+Control+number keys (1 through 0). Learns from your writing over time. Includes partial-word prediction and terminal auto-detection and a custom app exclusion list and a settings panel."
-msgstr "Yazdıklarınızı izler ve Kneser-Ney yumuşatma yöntemiyle n-gram analizi kullanarak bir sonraki kelimeyi tahmin eder. Tahminler, NVDA’nın konuşma motoru aracılığıyla duyurulur ve NVDA + Control + sayı tuşları (1’den 0’a kadar) ile kabul edilebilir. Zamanla yazdıklarınızdan öğrenir. Kısmi kelime tahmini, terminal otomatik algılama, özel uygulama hariç tutma listesi ve ayarlar paneli içerir."
+msgstr "Bi karanîna analîza n-gramê bi nermkirina Kneser-Ney, temaşe dike ka hûn çi dinivîsin û peyva din pêşbînî dike. Pêşbînî bi rêya motora axaftinê ya NVDA-yê têne ragihandin û dikarin bi bişkokên NVDA+Control+hejmaran (1 heta 0) werin pejirandin. Bi demê re ji nivîsandina we fêr dibe. Pêşbînîkirina qismî ya peyvan û tespîtkirina otomatîk a termînalê û navnîşek derxistina sepanên xwerû û panelek mîhengan vedihewîne."
 
 #. Brief changelog for this version
 #. Translators: what's new content for the add-on version to be shown in the add-on store
 #: buildVars.py:29
 msgid "Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them."
-msgstr "İsteğe bağlı tahminleri (NVDA+Alt+O) ve numaralı kabul tuşlarını çalışır durumda tutarken otomatik tahminleri susturan bir ayar eklendi. Sürekli bip sesi ve konuşmayı dikkat dağıtıcı bulan ve yalnızca tahminlerde bulunmak isteyen kullanıcılar için kullanışlıdır."
+msgstr "Mîhengek hat zêdekirin da ku pêşbîniyên otomatîk bêdeng bike di heman demê de pêşbîniyên li ser daxwazê (NVDA+Alt+O) û bişkokên qebûlkirinê yên hejmarkirî dixebitin. Ji bo bikarhênerên ku bip û axaftinê yên domdar bala wan dikişînin û tenê dema ku ew dixwazin pêşbîniyan dixwazin kêrhatî ye."
 
