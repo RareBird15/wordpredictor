@@ -1,0 +1,38 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: nvdaaddons\n"
+"Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
+"POT-Creation-Date: 2026-08-17 01:49+0000\n"
+"PO-Revision-Date: 2026-09-27 11:24\n"
+"Last-Translator: \n"
+"Language-Team: Russian\n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=((n%10==1 && n%100!=11) ? 0 : ((n%10 >= 2 && n%10 <=4 && (n%100 < 12 || n%100 > 14)) ? 1 : ((n%10 == 0 || (n%10 >= 5 && n%10 <=9)) || (n%100 >= 11 && n%100 <= 14)) ? 2 : 3));\n"
+"X-Crowdin-Project: nvdaaddons\n"
+"X-Crowdin-Project-ID: 780748\n"
+"X-Crowdin-Language: ru\n"
+"X-Crowdin-File: wordPredictor.pot\n"
+"X-Crowdin-File-ID: 649\n"
+
+#. Add-on summary/title, usually the user visible name of the add-on
+#. Translators: Summary/title for this add-on
+#. to be shown on installation and add-on information found in add-on store
+#: buildVars.py:21
+msgid "Word Predictor"
+msgstr "Предсказатель Слов"
+
+#. Add-on description
+#. Translators: Long description to be shown for this add-on on add-on information from add-on store
+#: buildVars.py:24
+msgid "Watches what you type and predicts the next word using n-gram analysis with Kneser-Ney smoothing. Predictions are announced through NVDA's speech engine and can be accepted with NVDA+Control+number keys (1 through 0). Learns from your writing over time. Includes partial-word prediction and terminal auto-detection and a custom app exclusion list and a settings panel."
+msgstr "Отслеживает ваш ввод и предсказывает следующее слово, используя n-граммовый анализ сглаживания Кнезера-Нея. Предсказания озвучиваются речевым движком NVDA и могут быть приняты с помощью комбинации клавиш NVDA+Control+цифра (от 1 до 0). Обучается на основе вашего текста с течением времени. Включает частичное предсказание слов, автоматическое определение конечного слова, пользовательский список исключений приложений и панель настроек."
+
+#. Brief changelog for this version
+#. Translators: what's new content for the add-on version to be shown in the add-on store
+#: buildVars.py:29
+msgid "Added a setting to silence automatic predictions while keeping on-demand predictions (NVDA+Alt+O) and the numbered acceptance keys working. Useful for users who find constant beeping and speech distracting and only want predictions when they ask for them."
+msgstr "Добавлена ​​настройка, позволяющая отключить автоматические подсказки, сохраняя при этом работоспособность подсказок по требованию (NVDA+Alt+O) и цифровых клавиш подтверждения. Это полезно для пользователей, которых отвлекают постоянные звуковые сигналы и речь, и которые хотят получать подсказки только по требованию."
+
